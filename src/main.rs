@@ -16,11 +16,11 @@ mod cyw43_driver;
 const CYCLE: u64 = 833;
 
 async fn send_command<'a>(pin: &mut Output<'a>, command: u8) {
-    // Send start bi
+    // Pin is set to high and when low for 8 cycles it signifies a start of a command
     pin.set_low();
     Timer::after(Duration::from_micros(CYCLE * 8)).await;
 
-    // Send 8 data bits, most significant bit (MSB) first
+    //Convert the command to the 8 bit binary representation
     for i in (0..8).rev() {
         let bit = (command >> i) & 1;
         println!("bit: {}", bit);
@@ -40,6 +40,7 @@ async fn send_command<'a>(pin: &mut Output<'a>, command: u8) {
             }
             2_u8..=u8::MAX => error!("Invalid bit value"),
         }
+        //TODO test if this is needed
         pin.set_low();
         Timer::after(Duration::from_micros(CYCLE * 1)).await;
     }

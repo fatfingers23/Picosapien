@@ -21,7 +21,7 @@ async fn cyw43_task(
     runner.run().await
 }
 
-pub async fn setup_cyw43<'a>(
+pub async fn _setup_cyw43<'a>(
     pio0: PIO0,
     p_23: PIN_23,
     p_24: PIN_24,

@@ -62,27 +62,19 @@ async fn send_command<'a>(pin: &mut Output<'a>, command: u8) {
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
-
     let delay = Duration::from_secs(5);
-
-    // let mut pwm = Pwm::new_output_b(p.PWM_SLICE0, p.PIN_17, c.clone());
     let mut pin = Output::new(p.PIN_16, Level::High);
 
     pin.set_high();
-    // send_command(&mut pin, 0xEF, wf_head, wf_hi, wf_lo, wf_tail).await;
-    // send_command(&mut pin, 0xB1, wf_head, wf_hi, wf_lo, wf_tail).await;
-    info!("Command sent");
-    // Send the command 0x81
-    // send_command(&mut pin, 0x81, wf_head, wf_hi, wf_lo, wf_tail).await;
+    //wake up
+    // send_command(&mut pin, 0xB1).await;
+
     loop {
-        // Send the command 0x81
-
-        info!("Sending command");
-        // control.gpio_set(0, true).await;
-        send_command(&mut pin, 0xC0).await;
-
-        info!("waiting");
-        // control.gpio_set(0, false).await;
+        info!("Tilt Left!");
+        send_command(&mut pin, 0x8B).await;
+        Timer::after(Duration::from_secs(3)).await;
+        info!("Tilt Right!");
+        send_command(&mut pin, 0x83).await;
         Timer::after(delay).await;
     }
 }

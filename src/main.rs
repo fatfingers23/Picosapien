@@ -7,22 +7,16 @@
 
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_rp::clocks;
-use embassy_rp::gpio::{AnyPin, Level, Output, Pin};
-use embassy_rp::pwm;
+use embassy_rp::gpio::{Level, Output};
 use embassy_time::{Duration, Timer};
 use {defmt_rtt as _, panic_probe as _};
 
 mod cyw43_driver;
 
 const CYCLE: u64 = 833;
-const PERIOD: Duration = Duration::from_micros(CYCLE);
-
-const CODE_RSTurnRight: u8 = 0x80;
-const CODE_RSRightArmUp: u8 = 0x81;
 
 async fn send_command<'a>(pin: &mut Output<'a>, command: u8) {
-    // Send start bit (wf_head)
+    // Send start bi
     pin.set_low();
     Timer::after(Duration::from_micros(CYCLE * 8)).await;
 
@@ -50,17 +44,12 @@ async fn send_command<'a>(pin: &mut Output<'a>, command: u8) {
         Timer::after(Duration::from_micros(CYCLE * 1)).await;
     }
 
-    // Send end bit (wf_tail)
+    // Set back to high to end the transmission
     pin.set_high();
-    // pin.set_low();
-    // Timer::after(wf_tail.1).await;
-
-    // // Set back to high (idle)
-    // pin.set_high();
 }
 
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
     let delay = Duration::from_secs(5);
     let mut pin = Output::new(p.PIN_16, Level::High);

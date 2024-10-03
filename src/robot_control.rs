@@ -24,10 +24,21 @@ impl<'d, PIO: pio::Instance, const SM: usize> RobotControl<'d, PIO, SM> {
             "set pindirs, 1",
             "set pins, 1",
             ".wrap_target",
-            "set pins, 0 [15]",
             "pull block",
-            // "set pins, 0 [1]"
-            // "set pins, 0 [4]",
+            "set pins, 0 [15]",
+            "set y, 8",
+            "bitloop:"
+            "out x, 1"
+            "jmp !y, end",
+            "jmp !x, zero",
+            "set pins, 1 [7]"
+            "set pins, 0 [1]"
+            "jmp y--, bitloop",
+            "zero:"
+            "set pins, 1 [1]"
+            "set pins, 0 [1]",
+            "jmp y--, bitloop",
+            "end:"
             "set pins, 1 "
             ".wrap"
         );

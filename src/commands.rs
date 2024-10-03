@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub enum RobotCommand {
     RightArmUp = 0x81,
     RightArmDown = 0x84,

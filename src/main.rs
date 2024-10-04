@@ -1,26 +1,26 @@
 #![no_std]
 #![no_main]
 
-use commands::RobotCommand;
-use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use core::str::from_utf8;
-use core::time::Duration as CoreDuration;
+use cyw43::JoinOptions;
 use defmt::*;
-use edge_nal_embassy::{Udp, UdpBuffers};
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
-use embassy_net::udp::{UdpMetadata, UdpSocket};
-use embassy_net::{Config, Ipv4Address, Stack, StackResources};
+use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
+use embassy_rp::multicore::{spawn_core1, Stack};
 use embassy_time::{Duration, Timer};
 use embedded_io_async::Write;
-use heapless::Vec;
+use env::env_value;
+use http_parser::request_parser;
 use rand::RngCore;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
 mod commands;
 mod cyw43_driver;
+mod env;
+mod http_parser;
 mod robot_control;
 
 use cyw43_driver::{net_task, setup_cyw43};
@@ -36,17 +36,19 @@ async fn main(spawner: Spawner) {
     .await;
 
     // Use a link-local address for communication without DHCP server
-    let config = Config::ipv4_static(embassy_net::StaticConfigV4 {
-        address: embassy_net::Ipv4Cidr::new(embassy_net::Ipv4Address::new(169, 254, 1, 1), 16),
-        dns_servers: heapless::Vec::new(),
-        gateway: None,
-    });
+    // let config = Config::ipv4_static(embassy_net::StaticConfigV4 {
+    //     address: embassy_net::Ipv4Cidr::new(embassy_net::Ipv4Address::new(169, 254, 1, 1), 16),
+    //     dns_servers: heapless::Vec::new(),
+    //     gateway: None,
+    // });
+
+    let config = Config::dhcpv4(Default::default());
 
     // Generate random seed
     let seed = rng.next_u64();
 
     // Init network stack
-    static RESOURCES: StaticCell<StackResources<6>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
     let (stack, runner) = embassy_net::new(
         net_device,
         config,
@@ -55,15 +57,33 @@ async fn main(spawner: Spawner) {
     );
 
     unwrap!(spawner.spawn(net_task(runner)));
-
-    control.start_ap_open("Picosapien", 5).await;
-
-    // spawner.must_spawn(access_point(stack));
+    let ssid = env_value("WIFI_SSID");
+    let password = env_value("WIFI_PASSWORD");
+    //Open AP
+    // control.start_ap_open("Picosapien", 5).await;
+    loop {
+        //This loop breaks when the join is successful
+        match control
+            .join(ssid, JoinOptions::new(password.as_bytes()))
+            .await
+        {
+            Ok(_) => break,
+            Err(err) => {
+                info!("join failed with status={}", err.status);
+            }
+        }
+    }
+    // Wait for DHCP, not necessary when using static IP
+    info!("waiting for DHCP...");
+    while !stack.is_config_up() {
+        Timer::after_millis(100).await;
+    }
+    info!("DHCP is now up!");
 
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
     let mut buf = [0; 4096];
-
+    info!("Listening on port 80");
     loop {
         let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
         socket.set_timeout(Some(Duration::from_secs(10)));
@@ -91,7 +111,9 @@ async fn main(spawner: Spawner) {
                 }
             };
 
-            info!("Web request{}", from_utf8(&buf[..n]).unwrap());
+            let request = request_parser(&buf[..n]);
+            info!("request {:?}", request.path);
+            // info!("Web request{}", from_utf8(&buf[..n]).unwrap());
             let html = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>
             <html>
                 <body>
@@ -110,16 +132,4 @@ async fn main(spawner: Spawner) {
             socket.close();
         }
     }
-
-    // let delay = Duration::from_secs(2);
-
-    // let mut robot = robot_control::RobotControl::new(AnyPin::from(p.PIN_16));
-
-    // loop {
-    //     info!("Sending command");
-
-    //     robot.send_command(RobotCommand::RightArmUp).await;
-    //     // send_command(&mut pin, RobotCommand::RightArmOut).await;
-    //     Timer::after(delay).await;
-    // }
 }

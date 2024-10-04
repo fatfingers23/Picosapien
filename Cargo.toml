@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-embassy-embedded-hal = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-embedded-hal = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
 ] }
-embassy-sync = { version = "0.6.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-sync = { version = "0.6.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
 ] }
-embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "task-arena-size-98304",
     "arch-cortex-m",
     "executor-thread",
@@ -20,21 +20,21 @@ embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "f
     "defmt",
     "integrated-timers",
 ] }
-embassy-time = { version = "0.3.2", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-time = { version = "0.3.2", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
     "defmt-timestamp-uptime",
 ] }
-embassy-rp = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-rp = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
     "unstable-pac",
     "time-driver",
     "critical-section-impl",
     "rp2040",
 ] }
-embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-usb = { git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
 ] }
-embassy-net = { version = "0.4.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-net = { version = "0.4.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
     "tcp",
     "udp",
@@ -43,17 +43,17 @@ embassy-net = { version = "0.4.0", git = "https://github.com/embassy-rs/embassy.
     "medium-ethernet",
     "dns",
 ] }
-embassy-net-wiznet = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+embassy-net-wiznet = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
 ] }
 embassy-futures = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy.git" }
 embassy-usb-logger = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git" }
-cyw43 = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+cyw43 = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
     "firmware-logs",
     "bluetooth",
 ] }
-cyw43-pio = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6", features = [
+cyw43-pio = { version = "0.2.0", git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb", features = [
     "defmt",
     "overclock",
 ] }
@@ -109,4 +109,4 @@ opt-level = "z"
 
 [patch.crates-io]
 trouble-host = { git = "https://github.com/embassy-rs/trouble.git", rev = "4b8c0f499b34e46ca23a56e2d1640ede371722cf" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "f0a86070512ad739641cee7d9fa39d63f5c8a9f6" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb" }

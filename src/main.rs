@@ -2,8 +2,12 @@
 #![no_main]
 
 use commands::RobotCommand;
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use core::str::from_utf8;
+use core::time::Duration as CoreDuration;
 use defmt::*;
+use edge_captive::io::run;
+use edge_nal_embassy::UdpBuffers;
 use embassy_executor::Spawner;
 use embassy_net::tcp::TcpSocket;
 use embassy_net::{Config, Ipv4Address, StackResources};
@@ -45,7 +49,7 @@ async fn main(spawner: Spawner) {
     let seed = rng.next_u64();
 
     // Init network stack
-    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
     let (stack, runner) = embassy_net::new(
         net_device,
         config,
@@ -61,12 +65,30 @@ async fn main(spawner: Spawner) {
     let mut tx_buffer = [0; 8192];
     let mut buf = [0; 8192];
 
+    let buffer = UdpBuffers::<1, 1024, 1024, 1>::new();
+    let udp = edge_nal_embassy::Udp::new(&stack, &buffer);
+
+    // let test = run(
+    //     &udp,
+    //     // Can't use DEFAULT_SOCKET because it uses DNS port 53 which needs root
+    //     SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8853),
+    //     &mut tx_buffer,
+    //     &mut rx_buffer,
+    //     Ipv4Addr::new(192, 168, 0, 1),
+    //     CoreDuration::from_secs(60),
+    // )
+    // .await;
+    // match test {
+    //     Ok(_) => info!("DNS test passed"),
+    //     Err(e) => info!("DNS test failed: "),
+    // }
+    // udp
     loop {
         let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
         socket.set_timeout(Some(Duration::from_secs(10)));
 
         control.gpio_set(0, false).await;
-        info!("Listening on TCP:1234...");
+        // info!("Listening on TCP:1234...");
         // socket
         // if let Ok(_) = socket.accept(53).await {
         //     let n = match socket.read(&mut buf).await {
@@ -83,11 +105,18 @@ async fn main(spawner: Spawner) {
 
         //     info!("DNS {}", from_utf8(&buf[..n]).unwrap());
         // }
+        // socket.
 
         if let Err(e) = socket.accept(80).await {
             warn!("accept error: {:?}", e);
             continue;
         }
+        // socket.accept(local_endpoint)
+        // if let None = socket.remote_endpoint() {
+        //     continue;
+        // }
+
+        // let new_stack = edge_nal_embassy::Stack::new(&stack.into());
 
         info!("Received connection from {:?}", socket.remote_endpoint());
         control.gpio_set(0, true).await;
@@ -105,7 +134,7 @@ async fn main(spawner: Spawner) {
                 }
             };
 
-            info!("rxd {}", from_utf8(&buf[..n]).unwrap());
+            info!("dns {}", from_utf8(&buf[..n]).unwrap());
             let html = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>
             <html>
                 <body>

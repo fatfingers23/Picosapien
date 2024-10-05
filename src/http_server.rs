@@ -94,6 +94,18 @@ pub fn request_parser(request_buffer: &[u8]) -> WebRequest {
     }
 
     info!("request_string {:?}", request_string);
+
+    // Split the request buffer into headers and body
+    let mut headers_end = 0;
+    for window in request_buffer.windows(4) {
+        if window == b"\r\n\r\n" {
+            headers_end = window.as_ptr() as usize - request_buffer.as_ptr() as usize + 4;
+            break;
+        }
+    }
+
+    let body = &request_buffer[headers_end..];
+    info!("Just body {:?}", core::str::from_utf8(body).unwrap());
     let mut lines = request_string.lines();
     let first_line = lines.next().unwrap();
     let mut first_line_words = first_line.split_whitespace();

@@ -4,7 +4,7 @@ use defmt::*;
 use embassy_net::{tcp::TcpSocket, Stack};
 use embassy_time::Duration;
 use embedded_io_async::Write;
-use httparse::{Header, EMPTY_HEADER};
+use httparse::Header;
 
 pub struct HttpServer {
     port: u16,
@@ -48,8 +48,19 @@ impl HttpServer {
                     }
                 };
 
-                let request = request_parser(&buf[..n]);
-                info!("request {:?}", request.path);
+                let mut headers = [httparse::EMPTY_HEADER; 10];
+
+                let request = self.request_parser(&mut buf, &mut headers);
+                match request {
+                    Some(request) => {
+                        info!("request {:?}", request.path);
+                        info!("Headers {:?}", request.headers[0].name);
+                    }
+                    None => {
+                        warn!("Was not a proper web request");
+                    }
+                }
+                // info!("request {:?}", request.path);
                 // info!("Web request{}", from_utf8(&buf[..n]).unwrap());
                 let html = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>
                 <html>
@@ -70,77 +81,203 @@ impl HttpServer {
             }
         }
     }
-}
+    pub fn request_parser<'headers, 'buf>(
+        &mut self,
+        request_buffer: &'buf [u8],
+        headers: &'headers mut [Header<'buf>],
+    ) -> Option<WebRequest<'headers, 'buf>> {
+        // let mut headers = [httparse::EMPTY_HEADER; 10];
+        let mut request: httparse::Request<'headers, 'buf> = httparse::Request::new(headers);
+        let res = request.parse(request_buffer).unwrap();
+        if res.is_partial() {
+            info!("Was not a proper web request");
+            return None;
+        }
 
-pub fn request_parser(request_buffer: &[u8]) -> WebRequest {
-    let request_string = core::str::from_utf8(request_buffer).unwrap();
-
-    let mut headers = [httparse::EMPTY_HEADER; 10];
-    let mut request: httparse::Request<'_, '_> = httparse::Request::new(&mut headers);
-    let res = request.parse(request_buffer).unwrap();
-
-    if res.is_complete() {
-        // request.
-        // info!("idk: {:?}", request);
-        match request.path {
-            Some(ref path) => {
-                // check router for path.
-                // /404 doesn't exist? we could stop parsing
-            }
-            None => {
-                // must read more and parse again
+        // Split the request buffer into headers and body
+        let mut headers_end = 0;
+        for window in request_buffer.windows(4) {
+            if window == b"\r\n\r\n" {
+                headers_end = window.as_ptr() as usize - request_buffer.as_ptr() as usize + 4;
+                break;
             }
         }
-    }
 
-    info!("request_string {:?}", request_string);
+        let body = &request_buffer[headers_end..];
+        // info!("Just body {:?}", body_string);
 
-    // Split the request buffer into headers and body
-    let mut headers_end = 0;
-    for window in request_buffer.windows(4) {
-        if window == b"\r\n\r\n" {
-            headers_end = window.as_ptr() as usize - request_buffer.as_ptr() as usize + 4;
-            break;
-        }
-    }
-
-    let body = &request_buffer[headers_end..];
-    info!("Just body {:?}", core::str::from_utf8(body).unwrap());
-    let mut lines = request_string.lines();
-    let first_line = lines.next().unwrap();
-    let mut first_line_words = first_line.split_whitespace();
-    let method = match first_line_words.next().unwrap() {
-        "POST" => HttpMethod::POST,
-        "GET" => HttpMethod::Get,
-        _ => HttpMethod::Unsupported,
-    };
-    let path = first_line_words.next().unwrap();
-    let version = first_line_words.next().unwrap();
-
-    //TODO need to read till content length. Parse number read that many bytes
-    // let body = lines.next().unwrap();
-
-    // info!("method {:?}", method);
-    info!("path {:?}", path);
-    info!("version {:?}", version);
-
-    WebRequest {
-        method,
-        path,
-        version,
-        // body,
+        Some(WebRequest {
+            method: Method::new(request.method.unwrap()),
+            path: request.path,
+            body: match core::str::from_utf8(body) {
+                Ok(body) => body,
+                Err(_) => "",
+            },
+            headers: request.headers,
+            // version,
+            // body,
+        })
     }
 }
 
-pub enum HttpMethod {
-    POST,
+pub struct WebRequest<'headers, 'buf> {
+    pub method: Option<Method>,
+    pub path: Option<&'buf str>,
+    // pub version: &'a str,
+    body: &'buf str,
+    pub headers: &'headers mut [Header<'buf>],
+}
+
+pub enum Method {
+    Delete,
     Get,
-    Unsupported,
+    Head,
+    Post,
+    Put,
+    Connect,
+    Options,
+    Trace,
+    Copy,
+    Lock,
+    MkCol,
+    Move,
+    Propfind,
+    Proppatch,
+    Search,
+    Unlock,
+    Bind,
+    Rebind,
+    Unbind,
+    Acl,
+    Report,
+    MkActivity,
+    Checkout,
+    Merge,
+    MSearch,
+    Notify,
+    Subscribe,
+    Unsubscribe,
+    Patch,
+    Purge,
+    MkCalendar,
+    Link,
+    Unlink,
 }
 
-pub struct WebRequest<'a> {
-    pub method: HttpMethod,
-    pub path: &'a str,
-    pub version: &'a str,
-    // body: &'a str,
+impl Method {
+    pub fn new(method: &str) -> Option<Self> {
+        if method.eq_ignore_ascii_case("Delete") {
+            Some(Self::Delete)
+        } else if method.eq_ignore_ascii_case("Get") {
+            Some(Self::Get)
+        } else if method.eq_ignore_ascii_case("Head") {
+            Some(Self::Head)
+        } else if method.eq_ignore_ascii_case("Post") {
+            Some(Self::Post)
+        } else if method.eq_ignore_ascii_case("Put") {
+            Some(Self::Put)
+        } else if method.eq_ignore_ascii_case("Connect") {
+            Some(Self::Connect)
+        } else if method.eq_ignore_ascii_case("Options") {
+            Some(Self::Options)
+        } else if method.eq_ignore_ascii_case("Trace") {
+            Some(Self::Trace)
+        } else if method.eq_ignore_ascii_case("Copy") {
+            Some(Self::Copy)
+        } else if method.eq_ignore_ascii_case("Lock") {
+            Some(Self::Lock)
+        } else if method.eq_ignore_ascii_case("MkCol") {
+            Some(Self::MkCol)
+        } else if method.eq_ignore_ascii_case("Move") {
+            Some(Self::Move)
+        } else if method.eq_ignore_ascii_case("Propfind") {
+            Some(Self::Propfind)
+        } else if method.eq_ignore_ascii_case("Proppatch") {
+            Some(Self::Proppatch)
+        } else if method.eq_ignore_ascii_case("Search") {
+            Some(Self::Search)
+        } else if method.eq_ignore_ascii_case("Unlock") {
+            Some(Self::Unlock)
+        } else if method.eq_ignore_ascii_case("Bind") {
+            Some(Self::Bind)
+        } else if method.eq_ignore_ascii_case("Rebind") {
+            Some(Self::Rebind)
+        } else if method.eq_ignore_ascii_case("Unbind") {
+            Some(Self::Unbind)
+        } else if method.eq_ignore_ascii_case("Acl") {
+            Some(Self::Acl)
+        } else if method.eq_ignore_ascii_case("Report") {
+            Some(Self::Report)
+        } else if method.eq_ignore_ascii_case("MkActivity") {
+            Some(Self::MkActivity)
+        } else if method.eq_ignore_ascii_case("Checkout") {
+            Some(Self::Checkout)
+        } else if method.eq_ignore_ascii_case("Merge") {
+            Some(Self::Merge)
+        } else if method.eq_ignore_ascii_case("MSearch") {
+            Some(Self::MSearch)
+        } else if method.eq_ignore_ascii_case("Notify") {
+            Some(Self::Notify)
+        } else if method.eq_ignore_ascii_case("Subscribe") {
+            Some(Self::Subscribe)
+        } else if method.eq_ignore_ascii_case("Unsubscribe") {
+            Some(Self::Unsubscribe)
+        } else if method.eq_ignore_ascii_case("Patch") {
+            Some(Self::Patch)
+        } else if method.eq_ignore_ascii_case("Purge") {
+            Some(Self::Purge)
+        } else if method.eq_ignore_ascii_case("MkCalendar") {
+            Some(Self::MkCalendar)
+        } else if method.eq_ignore_ascii_case("Link") {
+            Some(Self::Link)
+        } else if method.eq_ignore_ascii_case("Unlink") {
+            Some(Self::Unlink)
+        } else {
+            None
+        }
+    }
+
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Delete => "DELETE",
+            Self::Get => "GET",
+            Self::Head => "HEAD",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Connect => "CONNECT",
+            Self::Options => "OPTIONS",
+            Self::Trace => "TRACE",
+            Self::Copy => "COPY",
+            Self::Lock => "LOCK",
+            Self::MkCol => "MKCOL",
+            Self::Move => "MOVE",
+            Self::Propfind => "PROPFIND",
+            Self::Proppatch => "PROPPATCH",
+            Self::Search => "SEARCH",
+            Self::Unlock => "UNLOCK",
+            Self::Bind => "BIND",
+            Self::Rebind => "REBIND",
+            Self::Unbind => "UNBIND",
+            Self::Acl => "ACL",
+            Self::Report => "REPORT",
+            Self::MkActivity => "MKACTIVITY",
+            Self::Checkout => "CHECKOUT",
+            Self::Merge => "MERGE",
+            Self::MSearch => "MSEARCH",
+            Self::Notify => "NOTIFY",
+            Self::Subscribe => "SUBSCRIBE",
+            Self::Unsubscribe => "UNSUBSCRIBE",
+            Self::Patch => "PATCH",
+            Self::Purge => "PURGE",
+            Self::MkCalendar => "MKCALENDAR",
+            Self::Link => "LINK",
+            Self::Unlink => "UNLINK",
+        }
+    }
 }
+
+// impl Display for Method {
+//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+//         write!(f, "{}", self.as_str())
+//     }
+// }

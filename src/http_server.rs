@@ -16,7 +16,10 @@ impl HttpServer {
         Self { port, stack }
     }
 
-    pub async fn serve(&mut self) {
+    pub async fn serve<H>(&mut self, mut handler: H)
+    where
+        H: WebRequestHandler,
+    {
         let mut rx_buffer = [0; 4096];
         let mut tx_buffer = [0; 4096];
         let mut buf = [0; 4096];
@@ -50,32 +53,23 @@ impl HttpServer {
 
                 let mut headers = [httparse::EMPTY_HEADER; 10];
 
-                let request = self.request_parser(&mut buf, &mut headers);
+                let request = self.request_parser(&mut buf[..n], &mut headers);
                 match request {
                     Some(request) => {
-                        info!("request {:?}", request.path);
-                        info!("Headers {:?}", request.headers[0].name);
+                        let response = handler.handle_request(request).await;
+                        match socket.write_all(response.as_bytes()).await {
+                            Ok(()) => {}
+                            Err(e) => {
+                                warn!("write error: {:?}", e);
+                                break;
+                            }
+                        };
                     }
                     None => {
                         warn!("Was not a proper web request");
                     }
                 }
-                // info!("request {:?}", request.path);
-                // info!("Web request{}", from_utf8(&buf[..n]).unwrap());
-                let html = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>
-                <html>
-                    <body>
-                       <h1>Pico W - Hello World!</h1>
-                    </body>
-                </html";
 
-                match socket.write_all(html.as_bytes()).await {
-                    Ok(()) => {}
-                    Err(e) => {
-                        warn!("write error: {:?}", e);
-                        break;
-                    }
-                };
                 //Have to close the socket so the web browser knows its done
                 socket.close();
             }
@@ -86,7 +80,6 @@ impl HttpServer {
         request_buffer: &'buf [u8],
         headers: &'headers mut [Header<'buf>],
     ) -> Option<WebRequest<'headers, 'buf>> {
-        // let mut headers = [httparse::EMPTY_HEADER; 10];
         let mut request: httparse::Request<'headers, 'buf> = httparse::Request::new(headers);
         let res = request.parse(request_buffer).unwrap();
         if res.is_partial() {
@@ -104,7 +97,6 @@ impl HttpServer {
         }
 
         let body = &request_buffer[headers_end..];
-        // info!("Just body {:?}", body_string);
 
         Some(WebRequest {
             method: Method::new(request.method.unwrap()),
@@ -114,8 +106,6 @@ impl HttpServer {
                 Err(_) => "",
             },
             headers: request.headers,
-            // version,
-            // body,
         })
     }
 }
@@ -123,9 +113,12 @@ impl HttpServer {
 pub struct WebRequest<'headers, 'buf> {
     pub method: Option<Method>,
     pub path: Option<&'buf str>,
-    // pub version: &'a str,
-    body: &'buf str,
+    pub body: &'buf str,
     pub headers: &'headers mut [Header<'buf>],
+}
+
+pub trait WebRequestHandler {
+    async fn handle_request(&mut self, request: WebRequest) -> &str;
 }
 
 pub enum Method {
@@ -275,9 +268,3 @@ impl Method {
         }
     }
 }
-
-// impl Display for Method {
-//     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-//         write!(f, "{}", self.as_str())
-//     }
-// }

@@ -1,14 +1,14 @@
 #![no_std]
 #![no_main]
 
-use cyw43::JoinOptions;
+use cyw43::{Control, JoinOptions};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
 use embassy_time::Timer;
 use env::env_value;
-use http_server::HttpServer;
+use http_server::{HttpServer, WebRequest, WebRequestHandler};
 use rand::RngCore;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -78,5 +78,22 @@ async fn main(spawner: Spawner) {
 
     let mut server = HttpServer::new(80, stack);
 
-    server.serve().await;
+    server.serve(WebsiteHandler { control }).await;
+}
+
+struct WebsiteHandler {
+    control: Control<'static>,
+}
+
+impl WebRequestHandler for WebsiteHandler {
+    async fn handle_request(&mut self, request: WebRequest<'_, '_>) -> &str {
+        info!("request {:?}", request.path);
+        match request.path.unwrap() {
+            "/on" => self.control.gpio_set(0, true).await,
+            "/off" => self.control.gpio_set(0, false).await,
+            _ => self.control.gpio_set(0, true).await,
+        };
+
+        "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>"
+    }
 }

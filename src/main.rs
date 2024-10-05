@@ -1,18 +1,14 @@
 #![no_std]
 #![no_main]
 
-use core::str::from_utf8;
 use cyw43::JoinOptions;
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_net::tcp::TcpSocket;
 use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
-use embassy_rp::multicore::{spawn_core1, Stack};
-use embassy_time::{Duration, Timer};
-use embedded_io_async::Write;
+use embassy_time::Timer;
 use env::env_value;
-use http_parser::request_parser;
+use http_server::HttpServer;
 use rand::RngCore;
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -20,7 +16,7 @@ use {defmt_rtt as _, panic_probe as _};
 mod commands;
 mod cyw43_driver;
 mod env;
-mod http_parser;
+mod http_server;
 mod robot_control;
 
 use cyw43_driver::{net_task, setup_cyw43};
@@ -80,56 +76,7 @@ async fn main(spawner: Spawner) {
     }
     info!("DHCP is now up!");
 
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
-    let mut buf = [0; 4096];
-    info!("Listening on port 80");
-    loop {
-        let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
-        socket.set_timeout(Some(Duration::from_secs(10)));
+    let mut server = HttpServer::new(80, stack);
 
-        control.gpio_set(0, false).await;
-
-        if let Err(e) = socket.accept(80).await {
-            warn!("accept error: {:?}", e);
-            continue;
-        }
-
-        info!("Received connection from {:?}", socket.remote_endpoint());
-        control.gpio_set(0, true).await;
-
-        loop {
-            let n = match socket.read(&mut buf).await {
-                Ok(0) => {
-                    warn!("read EOF");
-                    break;
-                }
-                Ok(n) => n,
-                Err(e) => {
-                    warn!("read error: {:?}", e);
-                    break;
-                }
-            };
-
-            let request = request_parser(&buf[..n]);
-            info!("request {:?}", request.path);
-            // info!("Web request{}", from_utf8(&buf[..n]).unwrap());
-            let html = "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>
-            <html>
-                <body>
-                   <h1>Pico W - Hello World!</h1>
-                </body>
-            </html";
-
-            match socket.write_all(html.as_bytes()).await {
-                Ok(()) => {}
-                Err(e) => {
-                    warn!("write error: {:?}", e);
-                    break;
-                }
-            };
-            //Have to close the socket so the web browser knows its done
-            socket.close();
-        }
-    }
+    server.serve().await;
 }

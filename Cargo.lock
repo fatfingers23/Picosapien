@@ -1692,6 +1692,7 @@ dependencies = [
  "fixed",
  "fixed-macro",
  "heapless 0.8.0",
+ "httparse",
  "log",
  "panic-probe",
  "pio",

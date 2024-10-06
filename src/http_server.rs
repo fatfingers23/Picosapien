@@ -56,9 +56,12 @@ impl HttpServer {
                 let request = self.request_parser(&mut buf[..n], &mut headers);
                 match request {
                     Some(request) => {
-                        let response = handler.handle_request(request).await;
-                        let mut response_buffer = [0u8; 4096]; // Size the buffer appropriately
+                        let mut request_response_buffer = [0u8; 4096]; // Size the buffer appropriately
+                        let response = handler
+                            .handle_request(request, &mut request_response_buffer)
+                            .await;
 
+                        let mut response_buffer = [0u8; 4096];
                         let mut writer: BufWriter<'_> = BufWriter::new(&mut response_buffer);
                         match response.write_response(&mut writer) {
                             Ok(()) => {}
@@ -156,7 +159,11 @@ pub struct WebRequest<'headers, 'buf> {
 }
 
 pub trait WebRequestHandler {
-    async fn handle_request(&mut self, request: WebRequest) -> Response;
+    async fn handle_request<'a>(
+        &mut self,
+        request: WebRequest,
+        response_buffer: &'a mut [u8],
+    ) -> Response<'a>;
 }
 
 pub enum Method {

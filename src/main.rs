@@ -92,7 +92,11 @@ struct WebsiteHandler {
 
 impl WebRequestHandler for WebsiteHandler {
     //TODO the response needs to be a result
-    async fn handle_request(&mut self, request: WebRequest<'_, '_>) -> Response {
+    async fn handle_request<'a>(
+        &mut self,
+        request: WebRequest<'_, '_>,
+        response_buffer: &'a mut [u8],
+    ) -> Response<'a> {
         let light_status = match request.path.unwrap() {
             "/on" => {
                 self.control.gpio_set(0, true).await;
@@ -109,7 +113,6 @@ impl WebRequestHandler for WebsiteHandler {
             }
         };
 
-        let mut result_buffer = [0u8; 4096];
         let html_response = easy_format_str(
             format_args!(
                 "
@@ -117,20 +120,14 @@ impl WebRequestHandler for WebsiteHandler {
             <html>
                 <body>
                     <h1>The light is {light_status}.</h1>
-                    {}
+                    
                 </body>
             </html>
-            ",
-                light_status
+            "
             ),
-            &mut result_buffer,
+            response_buffer,
         );
 
-        let html_response = match html_response {
-            Ok(response) => response,
-            Err(_) => "Error formatting the string",
-        };
-
-        Response::new_html(StatusCode::Ok, &"html_response")
+        Response::new_html(StatusCode::Ok, html_response.unwrap())
     }
 }

@@ -63,7 +63,13 @@ impl HttpServer {
 
                         let mut response_buffer = [0u8; 4096];
                         let mut writer: BufWriter<'_> = BufWriter::new(&mut response_buffer);
-                        match response.write_response(&mut writer) {
+
+                        if response.is_err() {
+                            warn!("Something went wrong with the request");
+                            socket.close();
+                            break;
+                        }
+                        match response.unwrap().write_response(&mut writer) {
                             Ok(()) => {}
                             Err(_) => {
                                 warn!("Error writing response");

@@ -98,6 +98,10 @@ impl WebRequestHandler for WebsiteHandler {
         response_buffer: &'a mut [u8],
     ) -> Result<Response<'a>, WebRequestHandlerError> {
         let light_status = match request.path.unwrap() {
+            "/" => {
+                let web_app = include_str!("../web_app/index.html");
+                return Ok(Response::new_html(StatusCode::Ok, web_app));
+            }
             "/on" => {
                 self.control.gpio_set(0, true).await;
                 "on"

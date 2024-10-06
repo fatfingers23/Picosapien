@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web App</title>
+    <!-- Import Tailwind CSS from CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Import DaisyUI from CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@1.14.0/dist/full.css" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Your content here -->
+        <div class="flex flex-col items-center justify-center min-h-screen">
+            <button class="btn btn-primary" @click="count++">Click me</button>
+            <p class="mt-4 text-lg">You have clicked the button {{ count }} times.</p>
+        </div>
+
+        <script>
+
+        </script>
+    </div>
+    <!-- Import Petite-Vue from CDN -->
+    <script src="https://unpkg.com/petite-vue@0.2.2"></script>
+    <script>
+        PetiteVue.createApp({
+            count: 0
+        }).mount()
+    </script>
+</body>
+
+</html>

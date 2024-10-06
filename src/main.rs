@@ -2,7 +2,6 @@
 #![no_main]
 
 use core::borrow::Borrow;
-
 use cyw43::{Control, JoinOptions};
 use defmt::*;
 use embassy_executor::Spawner;
@@ -10,8 +9,10 @@ use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
 use embassy_time::Timer;
 use env::env_value;
-use http_server::{HttpServer, Response, StatusCode, WebRequest, WebRequestHandler};
-use io::{easy_format, easy_format_str};
+use http_server::{
+    HttpServer, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
+};
+use io::easy_format_str;
 use rand::RngCore;
 use reqwless::response::{self};
 use static_cell::StaticCell;
@@ -91,12 +92,11 @@ struct WebsiteHandler {
 }
 
 impl WebRequestHandler for WebsiteHandler {
-    //TODO the response needs to be a result
     async fn handle_request<'a>(
         &mut self,
         request: WebRequest<'_, '_>,
         response_buffer: &'a mut [u8],
-    ) -> Response<'a> {
+    ) -> Result<Response<'a>, WebRequestHandlerError> {
         let light_status = match request.path.unwrap() {
             "/on" => {
                 self.control.gpio_set(0, true).await;
@@ -128,6 +128,6 @@ impl WebRequestHandler for WebsiteHandler {
             response_buffer,
         );
 
-        Response::new_html(StatusCode::Ok, html_response.unwrap())
+        Ok(Response::new_html(StatusCode::Ok, html_response.unwrap()))
     }
 }

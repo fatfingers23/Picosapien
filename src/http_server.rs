@@ -158,12 +158,15 @@ pub struct WebRequest<'headers, 'buf> {
     pub headers: &'headers mut [Header<'buf>],
 }
 
+#[derive(Debug)]
+pub enum WebRequestHandlerError {}
+
 pub trait WebRequestHandler {
     async fn handle_request<'a>(
         &mut self,
         request: WebRequest,
         response_buffer: &'a mut [u8],
-    ) -> Response<'a>;
+    ) -> Result<Response<'a>, WebRequestHandlerError>;
 }
 
 pub enum Method {

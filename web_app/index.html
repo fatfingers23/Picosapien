@@ -16,6 +16,7 @@
             <h1 class="text-4xl font-bold mb-6">Picosapien</h1>
         </div>
         <div class="flex flex-col w-full max-w-md p-4 bg-gray-800 rounded-lg shadow-lg space-y-4">
+            <!--Upper half controls -->
             <div class="grid grid-cols-3 gap-2">
 
                 <!-- First Column (Right Arm Controls) -->
@@ -39,9 +40,9 @@
                     <button onclick="sendCommand(0x83)" class="btn btn-outline btn-secondary w-full">Tilt Body
                         Right
                     </button>
-                    <div class="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center">
-                        <div onclick="sendCommand(0x8E)" class="text-sm text-center text-gray-300">STOP</div>
-                    </div>
+                    <button disabled onclick="sendCommand(0x8E)" class="w-24 h-24 btn btn-primary btn-lg btn-circle">
+                        Unused
+                    </button>
                     <button onclick="sendCommand(0x8B)" class="btn btn-outline btn-secondary w-full">Tilt Body
                         Left
                     </button>
@@ -65,38 +66,67 @@
 
             </div>
 
-            <div class="items-center pt-6 grid grid-cols-3 gap-6">
-                <!-- Center Column (D-Pad & Selector) -->
-                <div class="col-span-1 col-start-2 flex flex-col items-center space-y-4">
-                    <!-- D-Pad for Movement -->
-                    <div class="relative w-24 h-24">
-                        <!-- Forward Button -->
-                        <button onclick="sendCommand(0x86)"
-                            class="btn btn-outline btn-secondary absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                            Forward
-                        </button>
+            <!-- Lower half controls -->
+            <div class="grid grid-cols-3 gap-2 pt-5">
 
-                        <!-- Left Button -->
-                        <button onclick="sendCommand(0x80)"
-                            class="btn btn-outline btn-secondary absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                            Left
-                        </button>
-
-                        <!-- Right Button -->
-                        <button onclick="sendCommand(0x88)"
-                            class="btn btn-outline btn-secondary absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2">
-                            Right
-                        </button>
-
-                        <!-- Backward Button -->
-                        <button onclick="sendCommand(0x87)"
-                            class="btn btn-outline btn-secondary absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">
-                            Backward
-                        </button>
-                    </div>
+                <!-- First Column (Right Arm Controls) -->
+                <div class="grid grid-cols-1 content-center col-span-1 space-y-2">
+                    <button onclick="sendCommand(0x80)" class="btn btn-outline btn-secondary w-full">Walk Left
+                    </button>
 
                 </div>
+
+                <!-- Center Column (Tilt Body and Selector) -->
+                <div class="col-span-1 flex flex-col items-center space-y-2">
+                    <button onclick="sendCommand(0x86)" class="btn btn-outline btn-secondary w-full"> Walk Forward
+                    </button>
+                    <button onclick="sendCommand(0x8E)" class="w-24 h-24 btn btn-primary btn-lg btn-circle">
+                        STOP
+                    </button>
+                    <button onclick="sendCommand(0x87)" class="btn btn-outline btn-secondary w-full">Walk Back
+                    </button>
+                </div>
+
+                <!-- Third Column (Left Arm Controls) -->
+                <div class="grid grid-cols-1 content-center col-span-1 space-y-2">
+                    <button onclick="sendCommand(0x88)" class="btn btn-outline btn-secondary w-full">Walk Right
+                    </button>
+                </div>
+
             </div>
+
+<!--            <div class="items-center pt-6 grid grid-cols-3 gap-6">-->
+<!--                &lt;!&ndash; Center Column (D-Pad & Selector) &ndash;&gt;-->
+<!--                <div class="col-span-1 col-start-2 flex flex-col items-center space-y-6">-->
+<!--                    &lt;!&ndash; D-Pad for Movement &ndash;&gt;-->
+<!--                    <div class="relative w-24 h-24">-->
+<!--                        &lt;!&ndash; Forward Button &ndash;&gt;-->
+<!--                        <button onclick="sendCommand(0x86)"-->
+<!--                            class="btn btn-outline btn-secondary absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">-->
+<!--                            Forward-->
+<!--                        </button>-->
+
+<!--                        &lt;!&ndash; Left Button &ndash;&gt;-->
+<!--                        <button onclick="sendCommand(0x80)"-->
+<!--                            class="btn btn-outline btn-secondary absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">-->
+<!--                            Left-->
+<!--                        </button>-->
+
+<!--                        &lt;!&ndash; Right Button &ndash;&gt;-->
+<!--                        <button onclick="sendCommand(0x88)"-->
+<!--                            class="btn btn-outline btn-secondary absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2">-->
+<!--                            Right-->
+<!--                        </button>-->
+
+<!--                        &lt;!&ndash; Backward Button &ndash;&gt;-->
+<!--                        <button onclick="sendCommand(0x87)"-->
+<!--                            class="btn btn-outline btn-secondary absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">-->
+<!--                            Backward-->
+<!--                        </button>-->
+<!--                    </div>-->
+
+<!--                </div>-->
+<!--            </div>-->
         </div>
     </div>
 

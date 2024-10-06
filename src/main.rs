@@ -10,7 +10,7 @@ use embassy_rp::clocks::RoscRng;
 use embassy_time::Timer;
 use env::env_value;
 use http_server::{
-    HttpServer, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
+    HttpServer, Method, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
 };
 use io::easy_format_str;
 use rand::RngCore;
@@ -37,14 +37,17 @@ async fn main(spawner: Spawner) {
     )
     .await;
 
-    // Use a link-local address for communication without DHCP server
-    // let config = Config::ipv4_static(embassy_net::StaticConfigV4 {
-    //     address: embassy_net::Ipv4Cidr::new(embassy_net::Ipv4Address::new(169, 254, 1, 1), 16),
-    //     dns_servers: heapless::Vec::new(),
-    //     gateway: None,
-    // });
+    let robot_control = robot_control::RobotControl::new(p.PIN_16.into());
 
-    let config = Config::dhcpv4(Default::default());
+    // Use a link-local address for communication without DHCP server
+    let config = Config::ipv4_static(embassy_net::StaticConfigV4 {
+        // address: embassy_net::Ipv4Cidr::new(embassy_net::Ipv4Address::new(169, 254, 1, 1), 16),
+        address: embassy_net::Ipv4Cidr::new(embassy_net::Ipv4Address::new(192, 168, 68, 53), 16),
+        dns_servers: heapless::Vec::new(),
+        gateway: Some(embassy_net::Ipv4Address::new(192, 168, 68, 1)),
+    });
+
+    // let config = Config::dhcpv4(Default::default());
 
     // Generate random seed
     let seed = rng.next_u64();
@@ -84,11 +87,17 @@ async fn main(spawner: Spawner) {
 
     let mut server = HttpServer::new(80, stack);
 
-    server.serve(WebsiteHandler { control }).await;
+    server
+        .serve(WebsiteHandler {
+            control,
+            robot_control,
+        })
+        .await;
 }
 
 struct WebsiteHandler {
     control: Control<'static>,
+    robot_control: robot_control::RobotControl<'static>,
 }
 
 impl WebRequestHandler for WebsiteHandler {
@@ -97,6 +106,30 @@ impl WebRequestHandler for WebsiteHandler {
         request: WebRequest<'_, '_>,
         response_buffer: &'a mut [u8],
     ) -> Result<Response<'a>, WebRequestHandlerError> {
+        if request.path.unwrap().starts_with("/command") {
+            let extracted_command = request.path.unwrap().split("/command/").last();
+            if extracted_command.is_none() {
+                error!("No command found");
+                return Ok(Response::new_html(
+                    StatusCode::Ok,
+                    "No command found in the request",
+                ));
+            }
+            let command = extracted_command.unwrap();
+            info!("Command: {:?}", command);
+            let parse_command = command.parse::<u8>();
+            if parse_command.is_err() {
+                error!("Cannot parse command");
+                return Ok(Response::new_html(
+                    StatusCode::Ok,
+                    "Cannot parse command to u8",
+                ));
+            }
+            let command = command.parse::<u8>().unwrap();
+            self.robot_control.send_raw_command(command).await;
+            return Ok(Response::new_html(StatusCode::Ok, "Command sent"));
+        }
+
         let light_status = match request.path.unwrap() {
             "/" => {
                 let web_app = include_str!("../web_app/index.html");
@@ -106,7 +139,6 @@ impl WebRequestHandler for WebsiteHandler {
                 self.control.gpio_set(0, true).await;
                 "on"
             }
-
             "/off" => {
                 self.control.gpio_set(0, false).await;
                 "off"

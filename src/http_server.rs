@@ -23,9 +23,9 @@ impl HttpServer {
     where
         H: WebRequestHandler,
     {
-        let mut rx_buffer = [0; 4096];
-        let mut tx_buffer = [0; 4096];
-        let mut buf = [0; 4096];
+        let mut rx_buffer = [0; 8_192];
+        let mut tx_buffer = [0; 8_192];
+        let mut buf = [0; 8_192];
         info!("Listening on port 80");
         loop {
             let mut socket = TcpSocket::new(self.stack, &mut rx_buffer, &mut tx_buffer);
@@ -56,12 +56,12 @@ impl HttpServer {
                 let request = self.request_parser(&mut buf[..n], &mut headers);
                 match request {
                     Some(request) => {
-                        let mut request_response_buffer = [0u8; 4096]; // Size the buffer appropriately
+                        let mut request_response_buffer = [0u8; 8_192]; // Size the buffer appropriately
                         let response = handler
                             .handle_request(request, &mut request_response_buffer)
                             .await;
 
-                        let mut response_buffer = [0u8; 4096];
+                        let mut response_buffer = [0u8; 8_192];
                         let mut writer: BufWriter<'_> = BufWriter::new(&mut response_buffer);
 
                         if response.is_err() {

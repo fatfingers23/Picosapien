@@ -4,31 +4,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web App</title>
-    <!-- Import Tailwind CSS from CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Import DaisyUI from CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@1.14.0/dist/full.css" rel="stylesheet">
+    <title>Picosapien</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.12/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
 </head>
 
 <body>
-    <div id="app">
-        <!-- Your content here -->
-        <div class="flex flex-col items-center justify-center min-h-screen">
-            <button class="btn btn-primary" @click="count++">Click me</button>
-            <p class="mt-4 text-lg">You have clicked the button {{ count }} times.</p>
+    <div class="flex flex-col justify-center items-center min-h-screen bg-gray-900 text-gray-100 dark">
+        <div class="w-full text-center">
+            <h1 class="text-4xl font-bold mb-6">Picosapien</h1>
         </div>
+        <div class="flex flex-col w-full max-w-md p-4 bg-gray-800 rounded-lg shadow-lg space-y-4">
+            <div class="grid grid-cols-3 gap-2">
 
-        <script>
+                <!-- First Column (Right Arm Controls) -->
+                <div class="col-span-1 space-y-2">
+                    <button onclick="sendCommand(0x81)" class="btn btn-outline btn-secondary w-full">Right Arm
+                        Up
+                    </button>
+                    <button onclick="sendCommand(0x84)" class="btn btn-outline btn-secondary w-full">Right Arm
+                        Down
+                    </button>
+                    <button onclick="sendCommand(0x85)" class="btn btn-outline btn-secondary w-full">Right Arm
+                        In
+                    </button>
+                    <button onclick="sendCommand(0x82)" class="btn btn-outline btn-secondary w-full">Right Arm
+                        Out
+                    </button>
+                </div>
 
-        </script>
+                <!-- Center Column (Tilt Body and Selector) -->
+                <div class="col-span-1 flex flex-col items-center space-y-2">
+                    <button onclick="sendCommand(0x83)" class="btn btn-outline btn-secondary w-full">Tilt Body
+                        Right
+                    </button>
+                    <div class="w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center">
+                        <div onclick="sendCommand(0x8E)" class="text-sm text-center text-gray-300">STOP</div>
+                    </div>
+                    <button onclick="sendCommand(0x8B)" class="btn btn-outline btn-secondary w-full">Tilt Body
+                        Left
+                    </button>
+                </div>
+
+                <!-- Third Column (Left Arm Controls) -->
+                <div class="col-span-1 space-y-2">
+                    <button onclick="sendCommand(0x89)" class="btn btn-outline btn-secondary w-full">Left Arm
+                        Up
+                    </button>
+                    <button onclick="sendCommand(0x8C)" class="btn btn-outline btn-secondary w-full">Left Arm
+                        Down
+                    </button>
+                    <button onclick="sendCommand(0x8D)" class="btn btn-outline btn-secondary w-full">Left Arm
+                        In
+                    </button>
+                    <button onclick="sendCommand(0x8A)" class="btn btn-outline btn-secondary w-full">Left Arm
+                        Out
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="items-center pt-6 grid grid-cols-3 gap-6">
+                <!-- Center Column (D-Pad & Selector) -->
+                <div class="col-span-1 col-start-2 flex flex-col items-center space-y-4">
+                    <!-- D-Pad for Movement -->
+                    <div class="relative w-24 h-24">
+                        <!-- Forward Button -->
+                        <button onclick="sendCommand(0x86)"
+                            class="btn btn-outline btn-secondary absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                            Forward
+                        </button>
+
+                        <!-- Left Button -->
+                        <button onclick="sendCommand(0x80)"
+                            class="btn btn-outline btn-secondary absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                            Left
+                        </button>
+
+                        <!-- Right Button -->
+                        <button onclick="sendCommand(0x88)"
+                            class="btn btn-outline btn-secondary absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2">
+                            Right
+                        </button>
+
+                        <!-- Backward Button -->
+                        <button onclick="sendCommand(0x87)"
+                            class="btn btn-outline btn-secondary absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">
+                            Backward
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
     </div>
+
     <!-- Import Petite-Vue from CDN -->
     <script src="https://unpkg.com/petite-vue@0.2.2"></script>
     <script>
-        PetiteVue.createApp({
-            count: 0
-        }).mount()
+        function sendCommand(command) {
+            fetch(`/command/${command}`)
+                .then(response => {
+                    if (response.status === 200) {
+                        console.log('Command successful:', command);
+                    } else {
+                        console.error('Command failed with status:', response.status);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending command:', error);
+                });
+        }
     </script>
 </body>
 

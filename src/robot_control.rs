@@ -19,14 +19,14 @@ impl<'d> RobotControl<'d> {
         Self { output_pin }
     }
 
-    pub async fn send_command(&mut self, command: RobotCommand) {
+    pub async fn send_raw_command(&mut self, command: u8) {
         // Pin is set to high and when low for 8 cycles it signifies a start of a command
         self.output_pin.set_low();
         Timer::after(Duration::from_micros(CYCLE * 8)).await;
-        let u8_command = command as u8;
+
         //Convert the command to the 8 bit binary representation
         for i in (0..8).rev() {
-            let bit = (u8_command >> i) & 1;
+            let bit = (command >> i) & 1;
             // Send the high-low sequence based on the bit value
             match bit {
                 1 => {
@@ -47,5 +47,9 @@ impl<'d> RobotControl<'d> {
 
         // Set back to high to end the transmission (default)
         self.output_pin.set_high();
+    }
+
+    pub async fn send_command(&mut self, command: RobotCommand) {
+        self.send_raw_command(command as u8).await;
     }
 }

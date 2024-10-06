@@ -1,10 +1,13 @@
+use core::fmt::write as fmt_write;
 use core::str;
-
 use defmt::*;
 use embassy_net::{tcp::TcpSocket, Stack};
 use embassy_time::Duration;
 use embedded_io_async::Write;
+use heapless::Vec;
 use httparse::Header;
+
+use crate::io::BufWriter;
 
 pub struct HttpServer {
     port: u16,
@@ -28,15 +31,12 @@ impl HttpServer {
             let mut socket = TcpSocket::new(self.stack, &mut rx_buffer, &mut tx_buffer);
             socket.set_timeout(Some(Duration::from_secs(10)));
 
-            // control.gpio_set(0, false).await;
-
             if let Err(e) = socket.accept(self.port).await {
                 warn!("accept error: {:?}", e);
                 continue;
             }
 
             info!("Received connection from {:?}", socket.remote_endpoint());
-            // control.gpio_set(0, true).await;
 
             loop {
                 let n = match socket.read(&mut buf).await {
@@ -57,7 +57,40 @@ impl HttpServer {
                 match request {
                     Some(request) => {
                         let response = handler.handle_request(request).await;
-                        match socket.write_all(response.as_bytes()).await {
+                        let mut response_buffer = [0u8; 4096]; // Size the buffer appropriately
+
+                        let mut writer: BufWriter<'_> = BufWriter::new(&mut response_buffer);
+                        match response.write_response(&mut writer) {
+                            Ok(()) => {}
+                            Err(_) => {
+                                warn!("Error writing response");
+                                let mut bad_response_buffer = [0u8; 300];
+                                let bad_response = Response::new_html(
+                                    StatusCode::InternalServerError,
+                                    "Error writing response",
+                                );
+                                let mut writer: BufWriter<'_> =
+                                    BufWriter::new(&mut bad_response_buffer);
+                                match bad_response.write_response(&mut writer) {
+                                    Ok(()) => {}
+                                    Err(_) => {
+                                        warn!("Error writing any response");
+                                        break;
+                                    }
+                                };
+                                //Already a hail mary, so just ignore the error
+                                let _ = socket.write_all(&bad_response_buffer).await;
+                            }
+                        };
+
+                        // info!(
+                        //     "Response: {:?}",
+                        //     core::str::from_utf8(&response_buffer).unwrap()
+                        // );
+                        //trim the buffer to the actual size
+                        let response_len: usize = writer.len();
+
+                        match socket.write_all(&response_buffer[..response_len]).await {
                             Ok(()) => {}
                             Err(e) => {
                                 warn!("write error: {:?}", e);
@@ -81,7 +114,12 @@ impl HttpServer {
         headers: &'headers mut [Header<'buf>],
     ) -> Option<WebRequest<'headers, 'buf>> {
         let mut request: httparse::Request<'headers, 'buf> = httparse::Request::new(headers);
-        let res = request.parse(request_buffer).unwrap();
+        let attempt_to_parse = request.parse(request_buffer);
+        if let Err(_) = attempt_to_parse {
+            info!("Failed to parse request");
+            return None;
+        }
+        let res = attempt_to_parse.unwrap();
         if res.is_partial() {
             info!("Was not a proper web request");
             return None;
@@ -118,7 +156,7 @@ pub struct WebRequest<'headers, 'buf> {
 }
 
 pub trait WebRequestHandler {
-    async fn handle_request(&mut self, request: WebRequest) -> &str;
+    async fn handle_request(&mut self, request: WebRequest) -> Response;
 }
 
 pub enum Method {
@@ -266,5 +304,112 @@ impl Method {
             Self::Link => "LINK",
             Self::Unlink => "UNLINK",
         }
+    }
+}
+
+pub enum StatusCode {
+    Ok,
+    Created,
+    Accepted,
+    NoContent,
+    MovedPermanently,
+    MovedTemporarily,
+    NotModified,
+    BadRequest,
+    Unauthorized,
+    Forbidden,
+    NotFound,
+    InternalServerError,
+    NotImplemented,
+    BadGateway,
+    ServiceUnavailable,
+}
+
+impl StatusCode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Ok => "200 OK",
+            Self::Created => "201 Created",
+            Self::Accepted => "202 Accepted",
+            Self::NoContent => "204 No Content",
+            Self::MovedPermanently => "301 Moved Permanently",
+            Self::MovedTemporarily => "302 Moved Temporarily",
+            Self::NotModified => "304 Not Modified",
+            Self::BadRequest => "400 Bad Request",
+            Self::Unauthorized => "401 Unauthorized",
+            Self::Forbidden => "403 Forbidden",
+            Self::NotFound => "404 Not Found",
+            Self::InternalServerError => "500 Internal Server Error",
+            Self::NotImplemented => "501 Not Implemented",
+            Self::BadGateway => "502 Bad Gateway",
+            Self::ServiceUnavailable => "503 Service Unavailable",
+        }
+    }
+
+    fn as_u16(&self) -> u16 {
+        match self {
+            Self::Ok => 200,
+            Self::Created => 201,
+            Self::Accepted => 202,
+            Self::NoContent => 204,
+            Self::MovedPermanently => 301,
+            Self::MovedTemporarily => 302,
+            Self::NotModified => 304,
+            Self::BadRequest => 400,
+            Self::Unauthorized => 401,
+            Self::Forbidden => 403,
+            Self::NotFound => 404,
+            Self::InternalServerError => 500,
+            Self::NotImplemented => 501,
+            Self::BadGateway => 502,
+            Self::ServiceUnavailable => 503,
+        }
+    }
+}
+
+type ResponseHeader = (&'static str, &'static str);
+
+pub struct Response<'a> {
+    status_code: StatusCode,
+    body: &'a str,
+    headers: Vec<ResponseHeader, 5>,
+}
+
+impl<'a> Response<'a> {
+    pub fn new(status_code: StatusCode, body: &'static str) -> Self {
+        Self {
+            status_code: status_code,
+            body,
+            headers: Vec::new(),
+        }
+    }
+
+    pub fn new_html(status_code: StatusCode, body: &'a str) -> Self {
+        let headers: Vec<ResponseHeader, 5> =
+            Vec::from_slice(&[("Content-type", "text/html")]).unwrap();
+
+        Self {
+            status_code: status_code,
+            body,
+            headers,
+        }
+    }
+
+    pub fn write_response<W>(&self, writer: &mut W) -> Result<(), core::fmt::Error>
+    where
+        W: core::fmt::Write,
+    {
+        let _ = fmt_write(
+            writer,
+            format_args!("HTTP/1.1 {} \r\n", self.status_code.as_str(),),
+        );
+
+        for (key, value) in self.headers.iter() {
+            let _ = fmt_write(writer, format_args!("{}: {}\r\n", key, value));
+        }
+        let _ = fmt_write(writer, format_args!("\r\n"));
+        writer.write_str(self.body)?;
+
+        Ok(())
     }
 }

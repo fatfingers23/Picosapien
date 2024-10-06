@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use core::borrow::Borrow;
+
 use cyw43::{Control, JoinOptions};
 use defmt::*;
 use embassy_executor::Spawner;
@@ -8,8 +10,10 @@ use embassy_net::{Config, StackResources};
 use embassy_rp::clocks::RoscRng;
 use embassy_time::Timer;
 use env::env_value;
-use http_server::{HttpServer, WebRequest, WebRequestHandler};
+use http_server::{HttpServer, Response, StatusCode, WebRequest, WebRequestHandler};
+use io::{easy_format, easy_format_str};
 use rand::RngCore;
+use reqwless::response::{self};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -17,6 +21,7 @@ mod commands;
 mod cyw43_driver;
 mod env;
 mod http_server;
+mod io;
 mod robot_control;
 
 use cyw43_driver::{net_task, setup_cyw43};
@@ -86,14 +91,46 @@ struct WebsiteHandler {
 }
 
 impl WebRequestHandler for WebsiteHandler {
-    async fn handle_request(&mut self, request: WebRequest<'_, '_>) -> &str {
-        info!("request {:?}", request.path);
-        match request.path.unwrap() {
-            "/on" => self.control.gpio_set(0, true).await,
-            "/off" => self.control.gpio_set(0, false).await,
-            _ => self.control.gpio_set(0, true).await,
+    //TODO the response needs to be a result
+    async fn handle_request(&mut self, request: WebRequest<'_, '_>) -> Response {
+        let light_status = match request.path.unwrap() {
+            "/on" => {
+                self.control.gpio_set(0, true).await;
+                "on"
+            }
+
+            "/off" => {
+                self.control.gpio_set(0, false).await;
+                "off"
+            }
+            _ => {
+                self.control.gpio_set(0, true).await;
+                "Probably off"
+            }
         };
 
-        "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n<!DOCTYPE html>"
+        let mut result_buffer = [0u8; 4096];
+        let html_response = easy_format_str(
+            format_args!(
+                "
+            <!DOCTYPE html>
+            <html>
+                <body>
+                    <h1>The light is {light_status}.</h1>
+                    {}
+                </body>
+            </html>
+            ",
+                light_status
+            ),
+            &mut result_buffer,
+        );
+
+        let html_response = match html_response {
+            Ok(response) => response,
+            Err(_) => "Error formatting the string",
+        };
+
+        Response::new_html(StatusCode::Ok, &"html_response")
     }
 }

@@ -51,7 +51,7 @@ impl HttpServer {
                     }
                 };
 
-                let mut headers = [httparse::EMPTY_HEADER; 10];
+                let mut headers = [httparse::EMPTY_HEADER; 20];
 
                 let request = self.request_parser(&mut buf[..n], &mut headers);
                 match request {

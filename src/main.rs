@@ -1,22 +1,20 @@
 #![no_std]
 #![no_main]
 
-use core::borrow::Borrow;
 use cyw43::{Control, JoinOptions};
 use cyw43_driver::{net_task, setup_cyw43};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::{Config, StackResources};
-use embassy_rp::clocks::RoscRng;
+use embassy_rp::{clocks::RoscRng, flash::Async, peripherals::FLASH};
 use embassy_time::{Duration, Timer};
-use env::env_value;
 use http_server::{
     HttpServer, Method, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
 };
 use io::easy_format_str;
 use rand::RngCore;
 use reqwless::response::{self};
-use save::{read_postcard_from_flash, Save};
+use save::{read_postcard_from_flash, save_postcard_to_flash, Save};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -34,9 +32,8 @@ const FLASH_SIZE: usize = 2 * 1024 * 1024;
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
     let mut rng = RoscRng;
-    let mut flash = embassy_rp::flash::Flash::<_, embassy_rp::flash::Async, FLASH_SIZE>::new(
-        p.FLASH, p.DMA_CH3,
-    );
+    let mut flash: embassy_rp::flash::Flash<'static, FLASH, Async, FLASH_SIZE> =
+        embassy_rp::flash::Flash::<'static, FLASH, Async, FLASH_SIZE>::new(p.FLASH, p.DMA_CH3);
     // Generate random seed
     let seed = rng.next_u64();
 
@@ -91,27 +88,11 @@ async fn main(spawner: Spawner) {
         }
         turn_on_ap = true;
     } else {
-        error!("Error reading flash");
+        let error = request_to_read_flash.err();
+        error!("Error reading flash: {:?}", error);
         turn_on_ap = true;
     }
 
-    // let ssid = env_value("WIFI_SSID");
-    // let password = env_value("WIFI_PASSWORD");
-    //Open AP
-    // control.start_ap_open("Picosapien", 5).await;
-    // loop {
-    //     //This loop breaks when the join is successful
-    //     match control
-    //         .join(ssid, JoinOptions::new(password.as_bytes()))
-    //         .await
-    //     {
-    //         Ok(_) => break,
-    //         Err(err) => {
-    //             info!("join failed with status={}", err.status);
-    //         }
-    //     }
-    // }
-    // Wait for DHCP, not necessary when using static IP
     if turn_on_ap {
         info!("Could not connect to save connection bringing up AP");
         // Use a link-local address for communication without DHCP server
@@ -133,6 +114,7 @@ async fn main(spawner: Spawner) {
     server
         .serve(WebsiteHandler {
             control,
+            flash,
             robot_control,
         })
         .await;
@@ -140,6 +122,8 @@ async fn main(spawner: Spawner) {
 
 struct WebsiteHandler {
     control: Control<'static>,
+    flash: embassy_rp::flash::Flash<'static, FLASH, Async, FLASH_SIZE>,
+    // flash: FLASH,
     robot_control: robot_control::RobotControl<'static>,
 }
 
@@ -177,6 +161,41 @@ impl WebRequestHandler for WebsiteHandler {
             "/" => {
                 let web_app = include_str!("../web_app/index.html");
                 return Ok(Response::new_html(StatusCode::Ok, web_app));
+            }
+            "/wifi" => {
+                let wifi_page = include_str!("../web_app/wifi.html");
+                return Ok(Response::new_html(StatusCode::Ok, wifi_page));
+            }
+            "/SaveWifi" => {
+                let (save, _) = serde_json_core::from_str::<Save>(request.body)
+                    .expect("Failed to deserialize body");
+
+                // let wifi_ssid = request.query.unwrap().get("wifi_ssid");
+                // let wifi_password = request.query.unwrap().get("wifi_password");
+                // if wifi_ssid.is_none() || wifi_password.is_none() {
+                //     return Ok(Response::new_html(
+                //         StatusCode::Ok,
+                //         "No wifi_ssid or wifi_password found in the request",
+                //     ));
+                // }
+                // let wifi_ssid = wifi_ssid.unwrap();
+                // let wifi_password = wifi_password.unwrap();
+                // save.wifi_ssid.push_str(wifi_ssid);
+                // save.wifi_password.push_str(wifi_password);
+                let save_result = save_postcard_to_flash(
+                    &mut self.flash,
+                    &Save {
+                        wifi_ssid: save.wifi_ssid,
+                        wifi_password: save.wifi_password,
+                    },
+                );
+                if save_result.is_err() {
+                    return Ok(Response::new_html(
+                        StatusCode::Ok,
+                        "Error saving wifi credentials to flash",
+                    ));
+                }
+                return Ok(Response::new_html(StatusCode::Ok, "Wifi has been saved"));
             }
             "/on" => {
                 self.control.gpio_set(0, true).await;

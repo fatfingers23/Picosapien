@@ -45,9 +45,18 @@ pub fn read_postcard_from_flash(
 ) -> Result<Option<Save>, &'static str> {
     let mut buf = [0u8; ERASE_SIZE];
 
-    flash
+    let result = flash
         .blocking_read(ADDR_OFFSET + SAVE_OFFSET, &mut buf)
-        .map_err(|_| "Read error")?;
+        .map_err(|e| e);
+    if result.is_err() {
+        info!("Error reading flash: {:?}", result.err());
+    }
+    //get result length ignoring trailing zeros
+    let len = buf.iter().position(|&r| r == 0).unwrap_or(buf.len());
+    let buf: &[u8] = &buf[..len];
+    let data_as_str = core::str::from_utf8(&buf).map_err(|_| "Invalid UTF-8")?;
+    info!("Data as str: {:?}", data_as_str);
+
     let data = from_bytes::<Option<Save>>(&buf).map_err(|_| "Deserialization error")?;
     Ok(data)
 }

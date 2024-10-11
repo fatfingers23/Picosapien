@@ -63,10 +63,12 @@ async fn main(spawner: Spawner) {
 
     unwrap!(spawner.spawn(net_task(runner)));
     let request_to_read_flash = read_postcard_from_flash(&mut flash);
-    if request_to_read_flash.is_ok() {
-        if let Some(save) = request_to_read_flash.unwrap() {
+    match request_to_read_flash {
+        Ok(save) => {
             let mut wifi_connection_attempts = 0;
+            let mut was_able_to_connect = false;
             while wifi_connection_attempts < 30 {
+                //TODO looks like it panics at wrong wifi ssid?
                 match control
                     .join(
                         save.wifi_ssid.as_str(),
@@ -76,6 +78,7 @@ async fn main(spawner: Spawner) {
                 {
                     Ok(_) => {
                         info!("join successful");
+                        was_able_to_connect = true;
                         break;
                     }
                     Err(err) => {
@@ -85,14 +88,15 @@ async fn main(spawner: Spawner) {
                 Timer::after(Duration::from_secs(1)).await;
                 wifi_connection_attempts += 1;
             }
+            if !was_able_to_connect {
+                turn_on_ap = true;
+            }
         }
-        turn_on_ap = true;
-    } else {
-        let error = request_to_read_flash.err();
-        error!("Error reading flash: {:?}", error);
-        turn_on_ap = true;
+        Err(err) => {
+            error!("Error reading flash: {:?}", err);
+            turn_on_ap = true;
+        }
     }
-
     if turn_on_ap {
         info!("Could not connect to save connection bringing up AP");
         // Use a link-local address for communication without DHCP server

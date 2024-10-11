@@ -1,6 +1,7 @@
 use crate::FLASH_SIZE;
-use defmt::info;
+use defmt::*;
 use embassy_rp::flash::{Async, ERASE_SIZE};
+use embassy_rp::pac::common::R;
 use embassy_rp::peripherals::FLASH;
 use heapless::String;
 use postcard::{from_bytes, to_slice};
@@ -42,7 +43,7 @@ pub fn save_postcard_to_flash(
 
 pub fn read_postcard_from_flash(
     flash: &mut embassy_rp::flash::Flash<'_, FLASH, Async, FLASH_SIZE>,
-) -> Result<Option<Save>, &'static str> {
+) -> Result<Save, &'static str> {
     let mut buf = [0u8; ERASE_SIZE];
 
     let result = flash
@@ -54,11 +55,19 @@ pub fn read_postcard_from_flash(
     //get result length ignoring trailing zeros
     let len = buf.iter().position(|&r| r == 0).unwrap_or(buf.len());
     let buf: &[u8] = &buf[..len];
-    let data_as_str = core::str::from_utf8(&buf).map_err(|_| "Invalid UTF-8")?;
-    info!("Data as str: {:?}", data_as_str);
 
-    let data = from_bytes::<Option<Save>>(&buf).map_err(|_| "Deserialization error")?;
-    Ok(data)
+    let data = from_bytes::<Save>(&buf);
+    match data {
+        Ok(data) => {
+            debug!("Save Data: {:?}", data);
+            return Ok(data);
+        }
+        Err(e) => {
+            //This should mean no data has been saved
+            error!("Error deserializing: {:?}", e);
+            return Err("Error deserializing");
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, defmt::Format)]

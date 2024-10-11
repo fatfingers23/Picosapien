@@ -8,42 +8,42 @@
 </head>
 
 <body>
-<h1>Enter your wifi SSID and Password</h1>
+    <h1>Enter your wifi SSID and Password</h1>
 
-<form id="wifiForm" onsubmit="submitWifiForm(event)">
-    <label for="ssid">SSID:</label>
-    <input type="text" id="ssid" name="ssid" required>
-    <br>
-    <label for="password">Password:</label>
-    <input type="password" id="password" name="password" required>
-    <br>
-    <button type="submit">Submit</button>
-</form>
+    <form id="wifiForm" onsubmit="submitWifiForm(event)">
+        <label for="ssid">SSID:</label>
+        <input type="text" id="ssid" name="ssid" required>
+        <br>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+        <br>
+        <button type="submit">Submit</button>
+    </form>
 
-<script>
-    function submitWifiForm(event) {
-        event.preventDefault();
+    <script>
+        function submitWifiForm(event) {
+            event.preventDefault();
 
-        const form = document.getElementById('wifiForm');
-        const data = {
-            wifi_ssid: form.ssid.value,
-            wifi_password: form.password.value
-        };
+            const form = document.getElementById('wifiForm');
+            const data = {
+                wifi_ssid: form.ssid.value,
+                wifi_password: form.password.value
+            };
 
-        console.log(JSON.stringify(data));
+            console.log(JSON.stringify(data));
 
-        // Here you can add your logic to send the JSON data to the server, e.g., using fetch API
-        fetch('/SaveWifi', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        }).then(response => response.json())
-        .then(data => console.log(data))
-        .catch(error => alert(`Error:${error}`));
-    }
-</script>
+            // Here you can add your logic to send the JSON data to the server, e.g., using fetch API
+            fetch('/SaveWifi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then(data => alert(data))
+                .catch(error => alert(`Error:${error}`));
+        }
+    </script>
 </body>
 
 </html>

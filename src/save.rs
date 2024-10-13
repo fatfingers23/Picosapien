@@ -14,8 +14,6 @@ pub fn save_postcard_to_flash(
     flash: &mut embassy_rp::flash::Flash<'_, FLASH, Async, FLASH_SIZE>,
     data: &Save,
 ) -> Result<(), &'static str> {
-    let mut buf = [0u8; ERASE_SIZE];
-
     let mut write_buf = [0u8; ERASE_SIZE];
     let written = to_slice(data, &mut write_buf).map_err(|_| "Serialization error")?;
 
@@ -25,10 +23,13 @@ pub fn save_postcard_to_flash(
 
     erase_save_flash(flash);
 
-    buf[..written.len()].copy_from_slice(&written);
-
+    // buf[..written.len()].copy_from_slice(&written);
+    let save_as_str = core::str::from_utf8(&written);
+    if save_as_str.is_ok() {
+        info!("saving as str: {:?}", save_as_str.unwrap());
+    }
     flash
-        .blocking_write(ADDR_OFFSET + SAVE_OFFSET, &buf)
+        .blocking_write(ADDR_OFFSET + SAVE_OFFSET, &written)
         .map_err(|_| "Write error")?;
 
     Ok(())
@@ -45,12 +46,11 @@ pub fn read_postcard_from_flash(
     if result.is_err() {
         info!("Error reading flash: {:?}", result.err());
     }
-    //get result length ignoring trailing zeros
-    let len = buf.iter().position(|&r| r == 0).unwrap_or(buf.len());
-    let buf: &[u8] = &buf[..len];
 
-    let save_as_str = core::str::from_utf8(buf).unwrap();
-    info!("Save as str: {:?}", save_as_str);
+    let save_as_str = core::str::from_utf8(&buf);
+    if save_as_str.is_ok() {
+        info!("Reading as str: {:?}", save_as_str.unwrap());
+    }
     let data = from_bytes::<Save>(&buf);
     match data {
         Ok(data) => {
@@ -66,6 +66,7 @@ pub fn read_postcard_from_flash(
 }
 
 pub fn erase_save_flash(flash: &mut embassy_rp::flash::Flash<'_, FLASH, Async, FLASH_SIZE>) {
+    debug!("Erasing save flash");
     flash
         .blocking_erase(
             ADDR_OFFSET + SAVE_OFFSET,
@@ -76,7 +77,7 @@ pub fn erase_save_flash(flash: &mut embassy_rp::flash::Flash<'_, FLASH, Async, F
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, defmt::Format)]
 pub struct Save {
+    pub clear_on_boot: bool,
     pub wifi_ssid: String<32>,
     pub wifi_password: String<32>,
-    pub clear_on_boot: bool,
 }

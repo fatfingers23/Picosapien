@@ -8,6 +8,7 @@ use embassy_executor::Spawner;
 use embassy_net::{Config, StackResources};
 use embassy_rp::{clocks::RoscRng, flash::Async, peripherals::FLASH, watchdog::Watchdog};
 use embassy_time::{Duration, Timer};
+use heapless::String;
 use http_server::{
     HttpServer, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
 };
@@ -53,11 +54,6 @@ async fn main(spawner: Spawner) {
     let robot_control = robot_control::RobotControl::new(p.PIN_16.into());
 
     let mut turn_on_ap = false;
-
-    //TODO IF a save is found join that network, if not open AP
-    //Also look at if it fails to start ap
-    //Also look at having a watchdog timer to restart the device if it fails to connect to a network
-
     let join_another_net_work_config = Config::dhcpv4(Default::default());
 
     // Init network stack
@@ -71,7 +67,7 @@ async fn main(spawner: Spawner) {
     spawner.must_spawn(net_task(runner));
 
     control.gpio_set(0, true).await;
-
+    // erase_save_flash(&mut flash);
     let request_to_read_flash = read_postcard_from_flash(&mut flash);
     match request_to_read_flash {
         Ok(mut save) => {
@@ -84,8 +80,15 @@ async fn main(spawner: Spawner) {
                 watchdog.trigger_reset();
             }
             //Sets a clear on boot flag before attempting to connect so we know if its never cleared we need to restart with a clear flash
-            save.clear_on_boot = true;
-            let _ = save_postcard_to_flash(&mut flash, &save);
+
+            let _ = save_postcard_to_flash(
+                &mut flash,
+                &Save {
+                    clear_on_boot: true,
+                    wifi_ssid: String::new(),
+                    wifi_password: String::new(),
+                },
+            );
             let mut wifi_connection_attempts = 0;
             let mut was_able_to_connect = false;
             while wifi_connection_attempts < 30 {
@@ -116,7 +119,7 @@ async fn main(spawner: Spawner) {
                 turn_on_ap = true;
             }
             //Spawn watch dog task
-            spawner.must_spawn(watchdog_task(watchdog));
+            watchdog.feed();
         }
         Err(err) => {
             error!("Error reading flash: {:?}", err);
@@ -139,6 +142,8 @@ async fn main(spawner: Spawner) {
         Timer::after_millis(100).await;
     }
     info!("DHCP is now up!");
+    //We can stop manually feeding the watchdog now
+    spawner.must_spawn(watchdog_task(watchdog));
 
     let mut server = HttpServer::new(80, stack);
 
@@ -154,7 +159,6 @@ async fn main(spawner: Spawner) {
 struct WebsiteHandler {
     control: Control<'static>,
     flash: embassy_rp::flash::Flash<'static, FLASH, Async, FLASH_SIZE>,
-    // flash: FLASH,
     robot_control: robot_control::RobotControl<'static>,
 }
 

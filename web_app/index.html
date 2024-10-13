@@ -5,114 +5,138 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Picosapien</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.12/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.12/dist/full.min.css" rel="stylesheet" type="text/css"/>
     <script src="https://cdn.tailwindcss.com"></script>
 
 </head>
 
 <body>
-    <div class="flex flex-col justify-center items-center min-h-screen bg-gray-900 text-gray-100 dark">
-        <div class="w-full text-center">
-            <h1 class="text-4xl font-bold mb-6">Picosapien</h1>
-        </div>
-        <div class="flex flex-col w-full max-w-md p-4 bg-gray-800 rounded-lg shadow-lg space-y-4">
-            <!--Upper half controls -->
-            <div class="grid grid-cols-3 gap-2">
-
-                <!-- First Column (Right Arm Controls) -->
-                <div class="col-span-1 space-y-2">
-                    <button onclick="sendCommand(0x81)" class="btn btn-outline btn-secondary w-full">Right Arm
-                        Up
-                    </button>
-                    <button onclick="sendCommand(0x84)" class="btn btn-outline btn-secondary w-full">Right Arm
-                        Down
-                    </button>
-                    <button onclick="sendCommand(0x85)" class="btn btn-outline btn-secondary w-full">Right Arm
-                        In
-                    </button>
-                    <button onclick="sendCommand(0x82)" class="btn btn-outline btn-secondary w-full">Right Arm
-                        Out
-                    </button>
-                </div>
-
-                <!-- Center Column (Tilt Body and Selector) -->
-                <div class="col-span-1 flex flex-col items-center space-y-2">
-                    <button onclick="sendCommand(0x83)" class="btn btn-outline btn-secondary w-full">Tilt Body
-                        Right
-                    </button>
-                    <button disabled onclick="sendCommand(0x8E)" class="w-24 h-24 btn btn-primary btn-lg btn-circle">
-                        Unused
-                    </button>
-                    <button onclick="sendCommand(0x8B)" class="btn btn-outline btn-secondary w-full">Tilt Body
-                        Left
-                    </button>
-                </div>
-
-                <!-- Third Column (Left Arm Controls) -->
-                <div class="col-span-1 space-y-2">
-                    <button onclick="sendCommand(0x89)" class="btn btn-outline btn-secondary w-full">Left Arm
-                        Up
-                    </button>
-                    <button onclick="sendCommand(0x8C)" class="btn btn-outline btn-secondary w-full">Left Arm
-                        Down
-                    </button>
-                    <button onclick="sendCommand(0x8D)" class="btn btn-outline btn-secondary w-full">Left Arm
-                        In
-                    </button>
-                    <button onclick="sendCommand(0x8A)" class="btn btn-outline btn-secondary w-full">Left Arm
-                        Out
-                    </button>
-                </div>
-
-            </div>
-
-            <!-- Lower half controls -->
-            <div class="grid grid-cols-3 gap-2 pt-5">
-
-                <!-- First Column (Right Arm Controls) -->
-                <div class="grid grid-cols-1 content-center col-span-1 space-y-2">
-                    <button onclick="sendCommand(0x80)" class="btn btn-outline btn-secondary w-full">Walk Left
-                    </button>
-
-                </div>
-
-                <!-- Center Column (Tilt Body and Selector) -->
-                <div class="col-span-1 flex flex-col items-center space-y-2">
-                    <button onclick="sendCommand(0x86)" class="btn btn-outline btn-secondary w-full"> Walk Forward
-                    </button>
-                    <button onclick="sendCommand(0x8E)" class="w-24 h-24 btn btn-primary btn-lg btn-circle">
-                        STOP
-                    </button>
-                    <button onclick="sendCommand(0x87)" class="btn btn-outline btn-secondary w-full">Walk Back
-                    </button>
-                </div>
-
-                <!-- Third Column (Left Arm Controls) -->
-                <div class="grid grid-cols-1 content-center col-span-1 space-y-2">
-                    <button onclick="sendCommand(0x88)" class="btn btn-outline btn-secondary w-full">Walk Right
-                    </button>
-                </div>
-            </div>
-        </div>
+<div class="flex flex-col justify-center items-center min-h-screen bg-gray-900 text-gray-100 dark">
+    <div class="w-full text-center">
+        <h1 class="text-4xl font-bold mb-6">Picosapien</h1>
     </div>
+    <div class="flex flex-col w-full max-w-md p-4 bg-gray-800 rounded-lg shadow-lg space-y-4">
+        <!--Upper half controls -->
+        <div class="grid grid-cols-3 gap-2">
 
-    <!-- Import Petite-Vue from CDN -->
-    <script src="https://unpkg.com/petite-vue@0.2.2"></script>
-    <script>
-        function sendCommand(command) {
-            fetch(`/command/${command}`)
-                .then(response => {
-                    if (response.status === 200) {
-                        console.log('Command successful:', command);
-                    } else {
-                        console.error('Command failed with status:', response.status);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error sending command:', error);
-                });
-        }
-    </script>
+            <!-- First Column (Right Arm Controls) -->
+            <div class="col-span-1 space-y-2">
+                <button onclick="sendCommand(0x81)" class="btn btn-outline btn-secondary w-full">Right Arm
+                    Up
+                </button>
+                <button onclick="sendCommand(0x84)" class="btn btn-outline btn-secondary w-full">Right Arm
+                    Down
+                </button>
+                <button onclick="sendCommand(0x85)" class="btn btn-outline btn-secondary w-full">Right Arm
+                    In
+                </button>
+                <button onclick="sendCommand(0x82)" class="btn btn-outline btn-secondary w-full">Right Arm
+                    Out
+                </button>
+            </div>
+
+            <!-- Center Column (Tilt Body and Selector) -->
+            <div class="col-span-1 flex flex-col items-center space-y-2">
+                <button onclick="sendCommand(0x83)" class="btn btn-outline btn-secondary w-full">Tilt Body
+                    Right
+                </button>
+                <button onclick="sendCommand(0xB1)" class="w-24 h-24 btn btn-primary btn-lg btn-circle">
+                    Wake Up
+                </button>
+                <button onclick="sendCommand(0x8B)" class="btn btn-outline btn-secondary w-full">Tilt Body
+                    Left
+                </button>
+            </div>
+
+            <!-- Third Column (Left Arm Controls) -->
+            <div class="col-span-1 space-y-2">
+                <button onclick="sendCommand(0x89)" class="btn btn-outline btn-secondary w-full">Left Arm
+                    Up
+                </button>
+                <button onclick="sendCommand(0x8C)" class="btn btn-outline btn-secondary w-full">Left Arm
+                    Down
+                </button>
+                <button onclick="sendCommand(0x8D)" class="btn btn-outline btn-secondary w-full">Left Arm
+                    In
+                </button>
+                <button onclick="sendCommand(0x8A)" class="btn btn-outline btn-secondary w-full">Left Arm
+                    Out
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Lower half controls -->
+        <div class="grid grid-cols-3 gap-2 pt-5">
+
+            <!-- First Column (Right Arm Controls) -->
+            <div class="grid grid-cols-1 content-center col-span-1 space-y-2">
+                <button onclick="sendCommand(0x80)" class="btn btn-outline btn-secondary w-full">Walk Left
+                </button>
+
+            </div>
+
+            <!-- Center Column (Tilt Body and Selector) -->
+            <div class="col-span-1 flex flex-col items-center space-y-2">
+                <button onclick="sendCommand(0x86)" class="btn btn-outline btn-secondary w-full"> Walk Forward
+                </button>
+                <button onclick="sendCommand(0x8E)" class="w-24 h-24 btn btn-primary btn-lg btn-circle">
+                    STOP
+                </button>
+                <button onclick="sendCommand(0x87)" class="btn btn-outline btn-secondary w-full">Walk Back
+                </button>
+            </div>
+
+            <!-- Third Column (Left Arm Controls) -->
+            <div class="grid grid-cols-1 content-center col-span-1 space-y-2">
+                <button onclick="sendCommand(0x88)" class="btn btn-outline btn-secondary w-full">Walk Right
+                </button>
+            </div>
+        </div>
+
+
+        <!--        random commands-->
+        <div class="grid grid-cols-3 gap-2 pt-5">
+            <button onclick="sendCommand(0xA4)" class="btn btn-outline btn-secondary w-full">Right Hand Pickup</button>
+            <button onclick="sendCommand(0xAC)" class="btn btn-outline btn-secondary w-full">Left Hand Pickup</button>
+            <button onclick="sendCommand(0xD1)" class="btn btn-outline btn-secondary w-full">Rose Bud (shut off)</button>
+            <button onclick="sendCommand(0xA3)" class="btn btn-outline btn-secondary w-full">Sleep</button>
+            <button onclick="sendCommand(0xC0)" class="btn btn-outline btn-secondary w-full"> right hand strike 3</button>
+            <button onclick="sendCommand(0xC1)" class="btn btn-outline btn-secondary w-full"> right hand sweep</button>
+            <button onclick="sendCommand(0xC2)" class="btn btn-outline btn-secondary w-full"> burp</button>
+            <button onclick="sendCommand(0xC3)" class="btn btn-outline btn-secondary w-full"> right hand strike 2</button>
+            <button onclick="sendCommand(0xC4)" class="btn btn-outline btn-secondary w-full"> high 5</button>
+            <button onclick="sendCommand(0xC5)" class="btn btn-outline btn-secondary w-full"> right hand strike 1</button>
+            <button onclick="sendCommand(0xC6)" class="btn btn-outline btn-secondary w-full"> bulldozer</button>
+            <button onclick="sendCommand(0xC7)" class="btn btn-outline btn-secondary w-full"> oops (fart)</button>
+            <button onclick="sendCommand(0xC8)" class="btn btn-outline btn-secondary w-full"> left hand strike 3</button>
+            <button onclick="sendCommand(0xC9)" class="btn btn-outline btn-secondary w-full"> left hand sweep</button>
+            <button onclick="sendCommand(0xCA)" class="btn btn-outline btn-secondary w-full"> whistle</button>
+            <button onclick="sendCommand(0xCB)" class="btn btn-outline btn-secondary w-full"> left hand strike 2</button>
+            <button onclick="sendCommand(0xCC)" class="btn btn-outline btn-secondary w-full"> talkback</button>
+            <button onclick="sendCommand(0xCD)" class="btn btn-outline btn-secondary w-full"> left hand strike 1</button>
+
+
+        </div>
+
+</div>
+<!-- Import Petite-Vue from CDN -->
+<script src="https://unpkg.com/petite-vue@0.2.2"></script>
+<script>
+    function sendCommand(command) {
+        fetch(`/command/${command}`)
+            .then(response => {
+                if (response.status === 200) {
+                    console.log('Command successful:', command);
+                } else {
+                    console.error('Command failed with status:', response.status);
+                }
+            })
+            .catch(error => {
+                console.error('Error sending command:', error);
+            });
+    }
+</script>
 </body>
 
 </html>

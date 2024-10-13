@@ -1,5 +1,6 @@
 use core::fmt::Arguments;
 use heapless::String;
+#[allow(dead_code)]
 
 /// Makes it easier to format strings in a single line method
 pub fn easy_format<const N: usize>(args: Arguments<'_>) -> String<N> {

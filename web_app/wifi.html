@@ -27,7 +27,8 @@
             const form = document.getElementById('wifiForm');
             const data = {
                 wifi_ssid: form.ssid.value,
-                wifi_password: form.password.value
+                wifi_password: form.password.value,
+                clear_on_boot: false
             };
 
             console.log(JSON.stringify(data));
@@ -40,8 +41,11 @@
                 },
                 body: JSON.stringify(data)
             })
-                .then(data => alert(data))
-                .catch(error => alert(`Error:${error}`));
+                .then(data => data.text().then(reply => alert(reply)))
+                .catch(error => {
+                    console.error(error);
+                    alert("Error connecting check console logs");
+                });
         }
     </script>
 </body>

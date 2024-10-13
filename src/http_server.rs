@@ -157,6 +157,7 @@ impl HttpServer {
     }
 }
 
+#[allow(dead_code)]
 pub struct WebRequest<'headers, 'buf> {
     pub method: Option<Method>,
     pub path: Option<&'buf str>,
@@ -284,7 +285,7 @@ impl Method {
         }
     }
 
-    fn as_str(&self) -> &'static str {
+    fn _as_str(&self) -> &'static str {
         match self {
             Self::Delete => "DELETE",
             Self::Get => "GET",
@@ -323,6 +324,7 @@ impl Method {
     }
 }
 
+#[allow(dead_code)]
 pub enum StatusCode {
     Ok,
     Created,
@@ -362,7 +364,7 @@ impl StatusCode {
         }
     }
 
-    fn as_u16(&self) -> u16 {
+    fn _as_u16(&self) -> u16 {
         match self {
             Self::Ok => 200,
             Self::Created => 201,
@@ -391,6 +393,7 @@ pub struct Response<'a> {
     headers: Vec<ResponseHeader, 5>,
 }
 
+#[allow(dead_code)]
 impl<'a> Response<'a> {
     pub fn new(status_code: StatusCode, body: &'static str) -> Self {
         Self {

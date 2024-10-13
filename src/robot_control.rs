@@ -49,7 +49,7 @@ impl<'d> RobotControl<'d> {
         self.output_pin.set_high();
     }
 
-    pub async fn send_command(&mut self, command: RobotCommand) {
+    pub async fn _send_command(&mut self, command: RobotCommand) {
         self.send_raw_command(command as u8).await;
     }
 }

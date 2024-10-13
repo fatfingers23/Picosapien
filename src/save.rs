@@ -1,12 +1,10 @@
 use crate::FLASH_SIZE;
 use defmt::*;
 use embassy_rp::flash::{Async, ERASE_SIZE};
-use embassy_rp::pac::common::R;
 use embassy_rp::peripherals::FLASH;
 use heapless::String;
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
-
 use {defmt_rtt as _, panic_probe as _};
 
 const ADDR_OFFSET: u32 = 0x100000;
@@ -25,12 +23,7 @@ pub fn save_postcard_to_flash(
         return Err("Data too large for flash sector");
     }
 
-    flash
-        .blocking_erase(
-            ADDR_OFFSET + SAVE_OFFSET,
-            ADDR_OFFSET + SAVE_OFFSET + ERASE_SIZE as u32,
-        )
-        .map_err(|_| "Erase error")?;
+    erase_save_flash(flash);
 
     buf[..written.len()].copy_from_slice(&written);
 
@@ -56,6 +49,8 @@ pub fn read_postcard_from_flash(
     let len = buf.iter().position(|&r| r == 0).unwrap_or(buf.len());
     let buf: &[u8] = &buf[..len];
 
+    let save_as_str = core::str::from_utf8(buf).unwrap();
+    info!("Save as str: {:?}", save_as_str);
     let data = from_bytes::<Save>(&buf);
     match data {
         Ok(data) => {
@@ -70,8 +65,18 @@ pub fn read_postcard_from_flash(
     }
 }
 
+pub fn erase_save_flash(flash: &mut embassy_rp::flash::Flash<'_, FLASH, Async, FLASH_SIZE>) {
+    flash
+        .blocking_erase(
+            ADDR_OFFSET + SAVE_OFFSET,
+            ADDR_OFFSET + SAVE_OFFSET + ERASE_SIZE as u32,
+        )
+        .unwrap();
+}
+
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq, defmt::Format)]
 pub struct Save {
     pub wifi_ssid: String<32>,
     pub wifi_password: String<32>,
+    pub clear_on_boot: bool,
 }

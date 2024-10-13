@@ -108,5 +108,4 @@ lto = true
 opt-level = "z"
 
 [patch.crates-io]
-trouble-host = { git = "https://github.com/embassy-rs/trouble.git", rev = "4b8c0f499b34e46ca23a56e2d1640ede371722cf" }
 embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "6e0b08291b63a0da8eba9284869d1d046bc5dabb" }

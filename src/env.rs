@@ -1,9 +1,9 @@
 use heapless::Vec;
 
-const ENV_DATA: &str = include_str!("../.env");
+const _ENV_DATA: &str = include_str!("../.env");
 
-pub fn env_value(key: &str) -> &'static str {
-    for line in ENV_DATA.lines() {
+pub fn _env_value(key: &str) -> &'static str {
+    for line in _ENV_DATA.lines() {
         let parts: Vec<&str, 2> = line.split('=').collect();
         if parts.len() == 2 {
             if parts[0].trim() == key {

@@ -6,15 +6,14 @@ use cyw43_driver::{net_task, setup_cyw43};
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_net::{Config, StackResources};
-use embassy_rp::{clocks::RoscRng, flash::Async, peripherals::FLASH};
+use embassy_rp::{clocks::RoscRng, flash::Async, peripherals::FLASH, watchdog::Watchdog};
 use embassy_time::{Duration, Timer};
 use http_server::{
-    HttpServer, Method, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
+    HttpServer, Response, StatusCode, WebRequest, WebRequestHandler, WebRequestHandlerError,
 };
 use io::easy_format_str;
 use rand::RngCore;
-use reqwless::response::{self};
-use save::{read_postcard_from_flash, save_postcard_to_flash, Save};
+use save::{erase_save_flash, read_postcard_from_flash, save_postcard_to_flash, Save};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -28,9 +27,18 @@ mod save;
 
 const FLASH_SIZE: usize = 2 * 1024 * 1024;
 
+#[embassy_executor::task]
+async fn watchdog_task(mut watchdog: Watchdog) {
+    loop {
+        watchdog.feed();
+        Timer::after(Duration::from_secs(4)).await;
+    }
+}
+
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     let p = embassy_rp::init(Default::default());
+    let mut watchdog = Watchdog::new(p.WATCHDOG);
     let mut rng = RoscRng;
     let mut flash: embassy_rp::flash::Flash<'static, FLASH, Async, FLASH_SIZE> =
         embassy_rp::flash::Flash::<'static, FLASH, Async, FLASH_SIZE>::new(p.FLASH, p.DMA_CH3);
@@ -53,50 +61,69 @@ async fn main(spawner: Spawner) {
     let join_another_net_work_config = Config::dhcpv4(Default::default());
 
     // Init network stack
-    static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
+    static RESOURCES: StaticCell<StackResources<4>> = StaticCell::new();
     let (stack, runner) = embassy_net::new(
         net_device,
         join_another_net_work_config,
         RESOURCES.init(StackResources::new()),
         seed,
     );
+    spawner.must_spawn(net_task(runner));
 
-    unwrap!(spawner.spawn(net_task(runner)));
+    control.gpio_set(0, true).await;
+
     let request_to_read_flash = read_postcard_from_flash(&mut flash);
     match request_to_read_flash {
-        Ok(save) => {
+        Ok(mut save) => {
+            watchdog.start(Duration::from_secs(8));
+
+            //If the last save says clear on boot. Clear and restart
+            if save.clear_on_boot {
+                info!("Clear on boot flag set. Clearing flash and restarting");
+                erase_save_flash(&mut flash);
+                watchdog.trigger_reset();
+            }
+            //Sets a clear on boot flag before attempting to connect so we know if its never cleared we need to restart with a clear flash
+            save.clear_on_boot = true;
+            let _ = save_postcard_to_flash(&mut flash, &save);
             let mut wifi_connection_attempts = 0;
             let mut was_able_to_connect = false;
             while wifi_connection_attempts < 30 {
-                //TODO looks like it panics at wrong wifi ssid?
-                match control
+                debug!("Attempting to connect to wifi: {}", save.wifi_ssid);
+                let attempt_to_connect = control
                     .join(
                         save.wifi_ssid.as_str(),
                         JoinOptions::new(save.wifi_password.as_bytes()),
                     )
-                    .await
-                {
+                    .await;
+                match attempt_to_connect {
                     Ok(_) => {
                         info!("join successful");
                         was_able_to_connect = true;
                         break;
                     }
                     Err(err) => {
-                        info!("join failed with status={}", err.status);
+                        error!("join failed with status={}", err.status);
                     }
                 }
                 Timer::after(Duration::from_secs(1)).await;
                 wifi_connection_attempts += 1;
             }
-            if !was_able_to_connect {
+            if was_able_to_connect {
+                save.clear_on_boot = false;
+                let _ = save_postcard_to_flash(&mut flash, &save);
+            } else {
                 turn_on_ap = true;
             }
+            //Spawn watch dog task
+            spawner.must_spawn(watchdog_task(watchdog));
         }
         Err(err) => {
             error!("Error reading flash: {:?}", err);
             turn_on_ap = true;
         }
     }
+
     if turn_on_ap {
         info!("Could not connect to save connection bringing up AP");
         // Use a link-local address for communication without DHCP server
@@ -171,31 +198,21 @@ impl WebRequestHandler for WebsiteHandler {
                 return Ok(Response::new_html(StatusCode::Ok, wifi_page));
             }
             "/SaveWifi" => {
-                let (save, _) = serde_json_core::from_str::<Save>(request.body)
-                    .expect("Failed to deserialize body");
+                let result = serde_json_core::from_str::<Save>(request.body);
 
-                // let wifi_ssid = request.query.unwrap().get("wifi_ssid");
-                // let wifi_password = request.query.unwrap().get("wifi_password");
-                // if wifi_ssid.is_none() || wifi_password.is_none() {
-                //     return Ok(Response::new_html(
-                //         StatusCode::Ok,
-                //         "No wifi_ssid or wifi_password found in the request",
-                //     ));
-                // }
-                // let wifi_ssid = wifi_ssid.unwrap();
-                // let wifi_password = wifi_password.unwrap();
-                // save.wifi_ssid.push_str(wifi_ssid);
-                // save.wifi_password.push_str(wifi_password);
-                let save_result = save_postcard_to_flash(
-                    &mut self.flash,
-                    &Save {
-                        wifi_ssid: save.wifi_ssid,
-                        wifi_password: save.wifi_password,
-                    },
-                );
+                if result.is_err() {
+                    return Ok(Response::new_html(
+                        StatusCode::BadRequest,
+                        "Error parsing json from request",
+                    ));
+                }
+
+                let (save, _) = result.unwrap();
+
+                let save_result = save_postcard_to_flash(&mut self.flash, &save);
                 if save_result.is_err() {
                     return Ok(Response::new_html(
-                        StatusCode::Ok,
+                        StatusCode::InternalServerError,
                         "Error saving wifi credentials to flash",
                     ));
                 }

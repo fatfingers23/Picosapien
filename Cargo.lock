@@ -2563,8 +2563,3 @@ name = "zeroize"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ced3678a2879b30306d323f4542626697a464a97c0a07c9aebf7ebca65cd4dde"
-
-[[patch.unused]]
-name = "trouble-host"
-version = "0.1.0"
-source = "git+https://github.com/embassy-rs/trouble.git?rev=4b8c0f499b34e46ca23a56e2d1640ede371722cf#4b8c0f499b34e46ca23a56e2d1640ede371722cf"

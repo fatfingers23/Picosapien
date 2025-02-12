@@ -25,12 +25,13 @@ impl HttpServer {
     {
         let mut rx_buffer = [0; 8_192];
         let mut tx_buffer = [0; 8_192];
-        let mut buf = [0; 8_192];
-        info!("Listening on port 80");
+        let mut request_buffer = [0; 8_192];
+        let ip = self.stack.config_v4().unwrap().address;
+        info!("Listening on ip: {}", ip);
+        let mut socket = TcpSocket::new(self.stack, &mut rx_buffer, &mut tx_buffer);
+        socket.set_timeout(Some(Duration::from_secs(10)));
+        socket.set_keep_alive(Some(Duration::from_secs(10)));
         loop {
-            let mut socket = TcpSocket::new(self.stack, &mut rx_buffer, &mut tx_buffer);
-            socket.set_timeout(Some(Duration::from_secs(10)));
-
             if let Err(e) = socket.accept(self.port).await {
                 warn!("accept error: {:?}", e);
                 continue;
@@ -39,7 +40,7 @@ impl HttpServer {
             info!("Received connection from {:?}", socket.remote_endpoint());
 
             loop {
-                let n = match socket.read(&mut buf).await {
+                let n = match socket.read(&mut request_buffer).await {
                     Ok(0) => {
                         warn!("read EOF");
                         break;
@@ -53,7 +54,7 @@ impl HttpServer {
 
                 let mut headers = [httparse::EMPTY_HEADER; 20];
 
-                let request = self.request_parser(&mut buf[..n], &mut headers);
+                let request = self.request_parser(&mut request_buffer[..n], &mut headers);
                 match request {
                     Some(request) => {
                         let mut request_response_buffer = [0u8; 8_192]; // Size the buffer appropriately
@@ -92,11 +93,6 @@ impl HttpServer {
                             }
                         };
 
-                        // info!(
-                        //     "Response: {:?}",
-                        //     core::str::from_utf8(&response_buffer).unwrap()
-                        // );
-                        //trim the buffer to the actual size
                         let response_len: usize = writer.len();
 
                         match socket.write_all(&response_buffer[..response_len]).await {
@@ -114,6 +110,10 @@ impl HttpServer {
 
                 //Have to close the socket so the web browser knows its done
                 socket.close();
+                if let Err(e) = socket.flush().await {
+                    warn!("Error flushing socket: {:?}", e);
+                    break;
+                }
             }
         }
     }
@@ -285,7 +285,7 @@ impl Method {
         }
     }
 
-    fn _as_str(&self) -> &'static str {
+    pub fn _as_str(&self) -> &'static str {
         match self {
             Self::Delete => "DELETE",
             Self::Get => "GET",
@@ -337,6 +337,7 @@ pub enum StatusCode {
     Unauthorized,
     Forbidden,
     NotFound,
+    MethodNotAllowed,
     InternalServerError,
     NotImplemented,
     BadGateway,
@@ -357,6 +358,7 @@ impl StatusCode {
             Self::Unauthorized => "401 Unauthorized",
             Self::Forbidden => "403 Forbidden",
             Self::NotFound => "404 Not Found",
+            Self::MethodNotAllowed => "405 Method Not Allowed",
             Self::InternalServerError => "500 Internal Server Error",
             Self::NotImplemented => "501 Not Implemented",
             Self::BadGateway => "502 Bad Gateway",
@@ -377,6 +379,7 @@ impl StatusCode {
             Self::Unauthorized => 401,
             Self::Forbidden => 403,
             Self::NotFound => 404,
+            Self::MethodNotAllowed => 405,
             Self::InternalServerError => 500,
             Self::NotImplemented => 501,
             Self::BadGateway => 502,
@@ -406,6 +409,17 @@ impl<'a> Response<'a> {
     pub fn new_html(status_code: StatusCode, body: &'a str) -> Self {
         let headers: Vec<ResponseHeader, 5> =
             Vec::from_slice(&[("Content-type", "text/html")]).unwrap();
+
+        Self {
+            status_code: status_code,
+            body,
+            headers,
+        }
+    }
+
+    pub fn json_response(status_code: StatusCode, body: &'a str) -> Self {
+        let headers: Vec<ResponseHeader, 5> =
+            Vec::from_slice(&[("Content-type", "application/json")]).unwrap();
 
         Self {
             status_code: status_code,

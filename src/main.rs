@@ -5,7 +5,7 @@ use cyw43::{Control, JoinOptions};
 use cyw43_driver::{net_task, setup_cyw43};
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_net::{Config, StackResources};
+use embassy_net::{Config, Ipv4Address, StackResources};
 use embassy_rp::{clocks::RoscRng, flash::Async, peripherals::FLASH, watchdog::Watchdog};
 use embassy_time::{Duration, Timer};
 use heapless::String;
@@ -20,7 +20,6 @@ use {defmt_rtt as _, panic_probe as _};
 
 mod commands;
 mod cyw43_driver;
-mod env;
 mod http_server;
 mod io;
 mod robot_control;
@@ -66,7 +65,6 @@ async fn main(spawner: Spawner) {
     );
     spawner.must_spawn(net_task(runner));
 
-    control.gpio_set(0, true).await;
     // erase_save_flash(&mut flash);
     let request_to_read_flash = read_postcard_from_flash(&mut flash);
     match request_to_read_flash {
@@ -131,7 +129,7 @@ async fn main(spawner: Spawner) {
         info!("Could not connect to save connection bringing up AP");
         // Use a link-local address for communication without DHCP server
         stack.set_config_v4(embassy_net::ConfigV4::Static(embassy_net::StaticConfigV4 {
-            address: embassy_net::Ipv4Cidr::new(embassy_net::Ipv4Address::new(169, 254, 1, 1), 16),
+            address: embassy_net::Ipv4Cidr::new(Ipv4Address::new(169, 254, 1, 1), 16),
             dns_servers: heapless::Vec::new(),
             gateway: None,
         }));
@@ -142,6 +140,8 @@ async fn main(spawner: Spawner) {
         Timer::after_millis(100).await;
     }
     info!("DHCP is now up!");
+    control.gpio_set(0, true).await;
+
     //We can stop manually feeding the watchdog now
     spawner.must_spawn(watchdog_task(watchdog));
 
